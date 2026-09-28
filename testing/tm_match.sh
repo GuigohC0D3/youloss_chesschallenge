@@ -30,7 +30,7 @@ cd "$OUT"  # fastchess grava config.json no cwd
   -each tc="$TC" option.Threads=1 option.Hash=16 \
   -openings file="$BOOK" format=epd order=random \
   -rounds "$ROUNDS" -games 2 -concurrency "$CONC" -recover \
-  "${SPRT[@]}" \
+  ${SPRT[@]+"${SPRT[@]}"} \
   -pgnout file="$OUT/$NAME.pgn" \
   | tee "$OUT/$NAME.log"
 
