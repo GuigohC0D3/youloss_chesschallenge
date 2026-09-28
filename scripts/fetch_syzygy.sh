@@ -18,7 +18,7 @@ wdl=$(ls "$DEST"/*.rtbw | wc -l)
 dtz=$(ls "$DEST"/*.rtbz | wc -l)
 [ "$wdl" -eq "$dtz" ] || { echo "WDL ($wdl) e DTZ ($dtz) não batem" >&2; exit 1; }
 touch assets/MANIFEST
-grep -v ' syzygy/' assets/MANIFEST > assets/MANIFEST.tmp || true
+grep -vE ' [*]?syzygy/' assets/MANIFEST > assets/MANIFEST.tmp || true
 (cd assets && sha256sum syzygy/*.rtbw syzygy/*.rtbz) >> assets/MANIFEST.tmp
 mv assets/MANIFEST.tmp assets/MANIFEST
 echo "OK: $wdl WDL + $dtz DTZ em $DEST"
