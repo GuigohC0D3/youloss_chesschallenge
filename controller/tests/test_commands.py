@@ -63,12 +63,14 @@ def test_go_on_opponent_turn_is_rejected(tmp_path, games):
 
 def test_resign_and_draw(tmp_path, games):
     for answers, color, expected in [
-        (["resign nos"], "black", ("1-0", "resign_us")),
-        (["resign adv"], "black", ("0-1", "resign_opponent")),
+        (["resign nos", "s"], "black", ("1-0", "resign_us")),
+        (["resign adv", "sim"], "black", ("0-1", "resign_opponent")),
         (["resign"], "black", (None, None)),
-        (["draw"], "black", ("1/2-1/2", "draw_agreed")),
+        (["draw", "S"], "black", ("1/2-1/2", "draw_agreed")),
+        (["draw", "n"], "black", (None, None)),
+        (["resign adv", ""], "black", (None, None)),
     ]:
-        sub = tmp_path / f"{answers[0].replace(' ', '_')}"
+        sub = tmp_path / "_".join(answers).replace(" ", "-")
         sub.mkdir()
         game, _ = games(sub, answers, color=color)
         game.run()

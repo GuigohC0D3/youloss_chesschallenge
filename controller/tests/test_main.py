@@ -3,6 +3,7 @@ import pytest
 from controller.game_log import check_log
 from controller.main import main
 from controller.state import latest_unfinished, load_state
+from controller.engine_client import EngineClient
 from controller.tests.scripted import REAL, Script, fake_engine
 
 
@@ -62,7 +63,7 @@ def test_resume_without_games(tmp_path):
 
 
 def test_resume_finished_game_refused(tmp_path):
-    assert run(["start", "--color", "black", *base_args(tmp_path)], answers=["draw"])[0] == 0
+    assert run(["start", "--color", "black", *base_args(tmp_path)], answers=["draw", "s"])[0] == 0
     state_file = next((tmp_path / "logs").glob("*.state.json"))
     code, text = run(["start", "--resume", str(state_file), *base_args(tmp_path)])
     assert code == 2 and "encerrada" in text
@@ -89,3 +90,26 @@ def test_full_game_against_weak_opponent_real_engine(tmp_path):
     lines = log_file.read_text(encoding="utf-8").splitlines()
     assert sum(l.startswith("move=") for l in lines) == len(state.moves)
     assert lines[-1] == "# result=1-0 reason=checkmate"
+
+
+def test_engine_failing_at_start_allows_same_start_again(tmp_path):
+    argv = ["start", "--color", "white", "--opponent", "X", *base_args(tmp_path)]
+    out: list[str] = []
+    code = main(argv, input_fn=Script([]), output_fn=out.append,
+                engine_factory=lambda path: EngineClient(tmp_path / "nope.exe"))
+    assert code == 2 and any("nope.exe" in o for o in out)
+    code, text = run(argv)
+    assert code == 0
+    log_file = next((tmp_path / "logs").glob("*.log"))
+    assert log_file.read_text(encoding="utf-8").startswith("# engine=")
+
+
+def test_io_error_mid_game_exits_2_with_resume_hint(tmp_path, monkeypatch):
+    import controller.game as game_mod
+
+    def locked(state, path):
+        raise PermissionError("arquivo em uso")
+
+    monkeypatch.setattr(game_mod, "save_state", locked)
+    code, text = run(["start", "--color", "white", *base_args(tmp_path)])
+    assert code == 2 and "arquivo em uso" in text and "--resume" in text

@@ -234,10 +234,24 @@ class Game:
             return
         loser = self.us if who == "nos" else (not self.us)
         result = "0-1" if loser == chess.WHITE else "1-0"
-        self._finish(result, "resign_us" if who == "nos" else "resign_opponent")
+        reason = "resign_us" if who == "nos" else "resign_opponent"
+        if self._confirm(f"encerrar a partida com {result} ({reason})?"):
+            self._finish(result, reason)
 
     def _cmd_draw(self, arg: str) -> None:
-        self._finish("1/2-1/2", "draw_agreed")
+        if self._confirm("encerrar a partida com empate acordado (1/2-1/2)?"):
+            self._finish("1/2-1/2", "draw_agreed")
+
+    def _confirm(self, question: str) -> bool:
+        # Encerrar não tem volta (o resume recusa partida encerrada): exige confirmação.
+        try:
+            answer = self.input_fn(f"{question} [s/N] ")
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() in ("s", "sim", "y", "yes"):
+            return True
+        self.out("cancelado; a partida continua")
+        return False
 
     def show_board(self, arg: str = "") -> None:
         self.out(f"{self.board}\nFEN: {self.board.fen()}\n{self._clock_line()}")

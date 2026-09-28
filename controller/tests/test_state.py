@@ -73,3 +73,45 @@ def test_latest_unfinished(tmp_path):
     os.utime(done, (3000, 3000))
     assert latest_unfinished(tmp_path) == new
     assert latest_unfinished(tmp_path / "vazio") is None
+
+
+@pytest.mark.parametrize("patch", [
+    {"moves": None},
+    {"moves": [1, 2]},
+    {"color": "red"},
+    {"white_ms": "abc"},
+    {"game": True},
+    {"result": 1},
+])
+def test_wrong_field_types_raise_state_error(tmp_path, patch):
+    path = tmp_path / "g.state.json"
+    save_state(sample(), path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data.update(patch)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(StateError):
+        load_state(path)
+
+
+def test_undecodable_file_raises_state_error_and_is_skipped(tmp_path):
+    bad = tmp_path / "bad.state.json"
+    bad.write_bytes(b"\xff\xfe\x00lixo")
+    with pytest.raises(StateError, match="corrompido"):
+        load_state(bad)
+    assert latest_unfinished(tmp_path) is None
+
+
+def test_save_retries_when_file_is_locked(tmp_path, monkeypatch):
+    import controller.state as state_mod
+    real_replace = os.replace
+    calls = []
+
+    def flaky_replace(src, dst):
+        calls.append(dst)
+        if len(calls) == 1:
+            raise PermissionError("arquivo em uso (antivírus)")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(state_mod.os, "replace", flaky_replace)
+    save_state(sample(), tmp_path / "g.state.json")
+    assert len(calls) == 2 and load_state(tmp_path / "g.state.json") == sample()

@@ -60,10 +60,9 @@ def _new_state(args: argparse.Namespace) -> tuple[GameState, Path]:
     state = GameState(color=args.color, opponent=args.opponent, game=args.game,
                       base_ms=base_ms, inc_ms=inc_ms, white_ms=base_ms, black_ms=base_ms,
                       log_path=str(path))
-    state_path = state_path_for(path)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    save_state(state, state_path)
-    return state, state_path
+    # Nada é gravado aqui: estado e log só nascem depois que o engine abrir,
+    # para que uma falha no início permita repetir o mesmo `start`.
+    return state, state_path_for(path)
 
 
 def _resumed_state(args: argparse.Namespace) -> tuple[GameState, Path]:
@@ -85,6 +84,13 @@ def _book_path(args: argparse.Namespace) -> Path | None:
     if args.book is not None:
         return args.book
     return DEFAULT_BOOK if DEFAULT_BOOK.exists() else None
+
+
+def _recovery_hint(state_path: Path) -> str:
+    if state_path.exists():
+        return (f"estado salvo em {state_path}; "
+                "retome com: python -m controller.main start --resume")
+    return "nada foi gravado; corrija o problema e repita o mesmo start"
 
 
 def open_engine(engine: EngineClient, options: dict[str, int | str]) -> str:
@@ -123,10 +129,14 @@ def main(
     clock = GameClock(state.base_ms, state.inc_ms)
     clock.set(chess.WHITE, state.white_ms)
     clock.set(chess.BLACK, state.black_ms)
-    log = GameLog(state.log_path)
+    log: GameLog | None = None
     engine = engine_factory(args.engine)
     try:
         name = open_engine(engine, options)
+        if not resumed:
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            save_state(state, state_path)
+        log = GameLog(state.log_path)
         if resumed:
             log.note("resume")
         else:
@@ -138,16 +148,17 @@ def main(
         if resumed:
             game.show_board()
         game.run()
-    except EngineError as exc:
-        output_fn(f"ERRO DO ENGINE: {exc}\nestado salvo em {state_path}; "
-                  "retome com: python -m controller.main start --resume")
+    except (EngineError, OSError) as exc:
+        kind = "DO ENGINE" if isinstance(exc, EngineError) else "DE E/S"
+        output_fn(f"ERRO {kind}: {exc}\n{_recovery_hint(state_path)}")
         return 2
     except KeyboardInterrupt:
-        output_fn(f"\ninterrompido; estado em {state_path} (start --resume)")
+        output_fn(f"\ninterrompido; {_recovery_hint(state_path)}")
         return 130
     finally:
         engine.quit()
-        log.close()
+        if log is not None:
+            log.close()
         book.close()
     return 0
 
