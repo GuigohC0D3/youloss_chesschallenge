@@ -7,10 +7,21 @@ from typing import Callable
 import chess
 
 from controller.book import OpeningBook
-from controller.clock import GameClock
+from controller.clock import ClockFormatError, GameClock, format_mmss, parse_mmss
 from controller.engine_client import EngineClient, EngineError, SearchInfo
 from controller.game_log import GameLog
 from controller.state import GameState, save_state
+
+HELP = """comandos:
+  <uci>                     lance do adversário (ex. e2e4, e7e8q)
+  undo                      desfaz o último meio-lance (pausa se virar nossa vez)
+  fen <FEN>                 ressincroniza com o tabuleiro físico (pausa se for nossa vez)
+  clock <nós mm:ss> <adv mm:ss>   sincroniza com o relógio físico
+  board                     tabuleiro, FEN e relógios
+  go                        retoma: engine joga (quando pausado na nossa vez)
+  resign nos|adv            registra abandono (nosso ou do adversário)
+  draw                      registra empate acordado
+  quit                      sai sem resultado (retomar com start --resume)"""
 
 # Teto de pensamento do spec (maximum <= 0.25 * restante); além disso o controller manda stop.
 MAX_THINK_FRACTION = 0.25
@@ -47,7 +58,17 @@ class Game:
         self.board = state.board()
         self.us = state.us()
         self.running = True
-        self._commands: dict[str, Callable[[str], None]] = {"quit": self._cmd_quit}
+        self._commands: dict[str, Callable[[str], None]] = {
+            "quit": self._cmd_quit,
+            "undo": self._cmd_undo,
+            "fen": self._cmd_fen,
+            "clock": self._cmd_clock,
+            "board": self.show_board,
+            "go": self._cmd_go,
+            "resign": self._cmd_resign,
+            "draw": self._cmd_draw,
+            "help": lambda arg: self.out(HELP),
+        }
 
     def run(self) -> str | None:
         """Joga até o fim da partida ou `quit`. Retorna o resultado, ou None se interrompida."""
@@ -154,6 +175,77 @@ class Game:
         self.out(f"partida interrompida; estado em {self.state_path}. "
                  "Retome com: python -m controller.main start --resume")
         self.running = False
+
+    def _cmd_undo(self, arg: str) -> None:
+        if not self.state.moves:
+            self.out("nada a desfazer")
+            return
+        undone = self.state.moves.pop()
+        self.board = self.state.board()
+        self.clock.start(self.board.turn)
+        self.paused = True
+        self._save()
+        self.log.note(f"undo {undone}")
+        self.show_board()
+
+    def _cmd_fen(self, arg: str) -> None:
+        try:
+            board = chess.Board(arg)
+        except ValueError as exc:
+            self.out(f"FEN inválida: {exc}")
+            return
+        if not board.is_valid():
+            self.out(f"FEN inválida: {board.status()!r}")
+            return
+        self.board = board
+        self.state.start_fen, self.state.moves = board.fen(), []
+        self.clock.start(board.turn)
+        self.paused = True
+        self._save()
+        self.log.note(f'fen "{board.fen()}"')
+        self.show_board()
+
+    def _cmd_clock(self, arg: str) -> None:
+        parts = arg.split()
+        if len(parts) != 2:
+            self.out("uso: clock <nosso mm:ss> <adv mm:ss>")
+            return
+        try:
+            ours, theirs = parse_mmss(parts[0]), parse_mmss(parts[1])
+        except ClockFormatError as exc:
+            self.out(str(exc))
+            return
+        self.clock.set(self.us, ours)
+        self.clock.set(not self.us, theirs)
+        self._save()
+        self.log.note(f"clock nos={parts[0]} adv={parts[1]}")
+        self.out(self._clock_line())
+
+    def _cmd_go(self, arg: str) -> None:
+        if self.board.turn != self.us:
+            self.out("vez do adversário: digite o lance dele")
+            return
+        self.paused = False
+
+    def _cmd_resign(self, arg: str) -> None:
+        who = arg.lower().replace("ó", "o")
+        if who not in ("nos", "adv"):
+            self.out("uso: resign nos|adv")
+            return
+        loser = self.us if who == "nos" else (not self.us)
+        result = "0-1" if loser == chess.WHITE else "1-0"
+        self._finish(result, "resign_us" if who == "nos" else "resign_opponent")
+
+    def _cmd_draw(self, arg: str) -> None:
+        self._finish("1/2-1/2", "draw_agreed")
+
+    def show_board(self, arg: str = "") -> None:
+        self.out(f"{self.board}\nFEN: {self.board.fen()}\n{self._clock_line()}")
+
+    def _clock_line(self) -> str:
+        ours = format_mmss(self.clock.remaining(self.us))
+        theirs = format_mmss(self.clock.remaining(not self.us))
+        return f"relógio: nós {ours} | adv {theirs}"
 
     # --- estado ------------------------------------------------------------
 
