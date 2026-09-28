@@ -5,3 +5,4 @@ engine/** text eol=lf
 *.rtbw binary
 *.rtbz binary
 *.nnue binary
+assets/MANIFEST text eol=lf

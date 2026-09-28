@@ -46,6 +46,7 @@
 #include "thread.h"
 #include "timeman.h"
 #include "tt.h"
+#include "youloss_tm.h"
 #include "types.h"
 #include "uci.h"
 #include "ucioption.h"
@@ -201,6 +202,24 @@ void Search::Worker::start_searching() {
 
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
                             main_manager()->originalTimeAdjust);
+
+    // Youloss: gestão de tempo autoral só em "base + incremento"; movestogo e
+    // nodestime continuam com o gerenciador original.
+    {
+        const Color us = rootPos.side_to_move();
+        auto*       mm = main_manager();
+        mm->youlossTM  = int(options["YoulossTM"]) != 0 && limits.time[us] > 0
+                     && limits.movestogo == 0 && int(options["nodestime"]) == 0;
+        if (mm->youlossTM)
+        {
+            constexpr Value FullNonPawn =
+              2 * (2 * KnightValue + 2 * BishopValue + 2 * RookValue + QueenValue);
+            const Youloss::Budget b = Youloss::budget(
+              {limits.time[us], limits.inc[us], TimePoint(options["Move Overhead"]),
+               double(rootPos.non_pawn_material()) / FullNonPawn});
+            mm->tm.set_bounds(b.optimum, b.maximum);
+        }
+    }
     tt.new_search();
     main_manager()->updates.onStart();
 
@@ -594,6 +613,20 @@ bool Search::Worker::iterative_deepening() {
             if (rootMoves.size() == 1)
                 // Cap used time to 0.5s for a better viewer experience
                 totalTime = std::min(500.0, totalTime);
+
+            // Youloss: tempo-alvo autoral; as variáveis originais acima continuam
+            // sendo calculadas porque alimentam previousTimeReduction.
+            if (mainThread->youlossTM)
+            {
+                const Value prevAvg = std::abs(mainThread->bestPreviousAverageScore) >= VALUE_INFINITE
+                                      ? bestValue
+                                      : mainThread->bestPreviousAverageScore;
+                totalTime           = Youloss::iteration_time(
+                  {double(mainThread->tm.optimum()), rootDepth - lastBestMoveDepth,
+                             totBestMoveChanges / double(threads.size()), bestValue, prevAvg,
+                             mainThread->iterValue[iterIdx], is_decisive(bestValue),
+                             int(rootMoves.size()), double(nodesEffort) / 100000.0});
+            }
 
             auto elapsedTime = elapsed();
 
