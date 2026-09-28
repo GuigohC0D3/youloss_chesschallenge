@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ctypes
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,7 +13,21 @@ HASH_CAP_MB = 16 * 1024
 SYZYGY_PROBE_LIMIT = 5  # FAQ item 4: no máximo 5 peças
 
 
+def _darwin_free_mb() -> int:
+    # macOS não tem SC_AVPHYS_PAGES. "Disponível" como no Monitor de Atividade:
+    # páginas livres + inativas + especulativas (reaproveitáveis sem swap).
+    out = subprocess.run(["vm_stat"], capture_output=True, text=True, check=True).stdout
+    page = int(re.search(r"page size of (\d+) bytes", out).group(1))
+
+    def pages(name: str) -> int:
+        return int(re.search(rf"^Pages {name}:\s+(\d+)", out, re.M).group(1))
+
+    return (pages("free") + pages("inactive") + pages("speculative")) * page // 2**20
+
+
 def free_memory_mb() -> int:
+    if sys.platform == "darwin":
+        return _darwin_free_mb()
     if sys.platform != "win32":
         return os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") // 2**20
 
