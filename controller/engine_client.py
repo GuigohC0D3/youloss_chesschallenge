@@ -5,6 +5,7 @@ import queue
 import subprocess
 import threading
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 _EOF = object()
@@ -24,6 +25,46 @@ class EngineTimeout(EngineError):
 
 class EngineCrashed(EngineError):
     pass
+
+
+@dataclass
+class SearchInfo:
+    bestmove: str
+    ponder: str | None = None
+    depth: int = 0
+    seldepth: int = 0
+    nodes: int = 0
+    score_cp: int | None = None
+    score_mate: int | None = None
+    pv: list[str] = field(default_factory=list)
+    stopped: bool = False
+
+
+def parse_info(line: str, into: SearchInfo) -> None:
+    """Atualiza `into` com uma linha `info` completa (com score e pv).
+
+    Ignora bounds (score provisório), multipv > 1 e linhas malformadas."""
+    tok = line.split()
+    if tok[:1] != ["info"] or "pv" not in tok or "score" not in tok:
+        return
+    if "lowerbound" in tok or "upperbound" in tok:
+        return
+    try:
+        if "multipv" in tok and tok[tok.index("multipv") + 1] != "1":
+            return
+        i = tok.index("score")
+        kind, value = tok[i + 1], int(tok[i + 2])
+        depth = int(tok[tok.index("depth") + 1])
+        seldepth = int(tok[tok.index("seldepth") + 1]) if "seldepth" in tok else 0
+        nodes = int(tok[tok.index("nodes") + 1]) if "nodes" in tok else 0
+    except (ValueError, IndexError):
+        return
+    if kind not in ("cp", "mate"):
+        return
+    into.depth, into.seldepth, into.nodes = depth, seldepth, nodes
+    into.score_cp = value if kind == "cp" else None
+    into.score_mate = value if kind == "mate" else None
+    into.pv = tok[tok.index("pv") + 1:]
 
 
 class EngineClient:
@@ -117,6 +158,38 @@ class EngineClient:
         if isinstance(value, bool):
             value = "true" if value else "false"
         self.send(f"setoption name {name} value {value}")
+
+    def search(
+        self, position: str, go: str, timeout: float, stop_grace: float = 2.0
+    ) -> SearchInfo:
+        """Busca até `bestmove`. Estourado `timeout`, manda `stop` e espera `stop_grace`."""
+        self.send(position)
+        self.send(go)
+        info = SearchInfo(bestmove="")
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                if info.stopped:
+                    raise EngineTimeout(f"bestmove não recebido {stop_grace}s após stop")
+                self.send("stop")
+                info.stopped = True
+                deadline = time.monotonic() + stop_grace
+                continue
+            try:
+                line = self.read_line(remaining)
+            except EngineTimeout:
+                continue
+            if line.startswith("info "):
+                parse_info(line, info)
+            elif line.startswith("bestmove"):
+                parts = line.split()
+                info.bestmove = parts[1] if len(parts) > 1 else "(none)"
+                if len(parts) >= 4 and parts[2] == "ponder":
+                    info.ponder = parts[3]
+                if info.bestmove == "(none)":
+                    raise EngineError("engine sem lance: bestmove (none)")
+                return info
 
     def quit(self, timeout: float = 2.0) -> None:
         if not self._proc:
