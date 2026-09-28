@@ -6,9 +6,10 @@ from pathlib import Path
 import pytest
 
 from controller.engine_client import EngineClient, SearchInfo
+from controller.main import DEFAULT_ENGINE
 
 ROOT = Path(__file__).resolve().parents[2]
-REAL = ROOT / "bin" / "youloss.exe"
+REAL = DEFAULT_ENGINE
 BENCH_NODES = 2497913
 pytestmark = pytest.mark.skipif(not REAL.exists(), reason="engine não compilado")
 

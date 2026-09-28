@@ -2,6 +2,8 @@
 # Baixa as Syzygy 3-4-5 (WDL+DTZ) para assets/syzygy e registra sha256 em assets/MANIFEST.
 # Rodar do root do repo, com rede, ANTES do evento (FAQ itens 4 e 14). ~1 GB.
 set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/platform.sh"
 BASE="https://tablebase.lichess.ovh/tables/standard/3-4-5"
 DEST="assets/syzygy"
 mkdir -p "$DEST"
@@ -19,6 +21,6 @@ dtz=$(ls "$DEST"/*.rtbz | wc -l)
 [ "$wdl" -eq "$dtz" ] || { echo "WDL ($wdl) e DTZ ($dtz) não batem" >&2; exit 1; }
 touch assets/MANIFEST
 grep -vE ' [*]?syzygy/' assets/MANIFEST > assets/MANIFEST.tmp || true
-(cd assets && sha256sum syzygy/*.rtbw syzygy/*.rtbz) >> assets/MANIFEST.tmp
+(cd assets && $SHA256 syzygy/*.rtbw syzygy/*.rtbz) >> assets/MANIFEST.tmp
 mv assets/MANIFEST.tmp assets/MANIFEST
 echo "OK: $wdl WDL + $dtz DTZ em $DEST"

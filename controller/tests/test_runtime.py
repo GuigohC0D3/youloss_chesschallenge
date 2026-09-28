@@ -4,9 +4,10 @@ import pytest
 
 from controller.engine_client import EngineClient
 from controller.runtime import free_memory_mb, has_syzygy, runtime_options
+from controller.main import DEFAULT_ENGINE
 
 ROOT = Path(__file__).resolve().parents[2]
-REAL = ROOT / "bin" / "youloss.exe"
+REAL = DEFAULT_ENGINE
 SYZYGY = ROOT / "assets" / "syzygy"
 
 
