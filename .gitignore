@@ -1,0 +1,14 @@
+bin/
+tools/
+assets/*
+!assets/MANIFEST
+logs/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+engine/src/*.o
+engine/src/stockfish
+engine/src/stockfish.exe
+engine/src/*.nnue

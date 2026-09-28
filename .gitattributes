@@ -1,0 +1,7 @@
+* text=auto
+engine/** text eol=lf
+*.sh text eol=lf
+*.bin binary
+*.rtbw binary
+*.rtbz binary
+*.nnue binary
