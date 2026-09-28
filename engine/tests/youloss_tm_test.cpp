@@ -42,6 +42,13 @@ static void test_budget_low_time_keeps_reserve() {
     CHECK(b.optimum == 1250);  // optimum nunca passa do maximum
 }
 
+static void test_budget_low_time_reserve_scales_with_clock() {
+    // 400 ms no relógio: reserva extra = min(1000, 10% de 400) = 40 ms, não 1 s.
+    Budget b = budget({400, 20, 10, 1.0});
+    CHECK(b.maximum == 100);  // 0.25 * 400 (disponível: 400 - 10 - 40 = 350)
+    CHECK(b.optimum == 24);   // 400/45 + 0.8*20
+}
+
 static void test_budget_below_reserve_is_one_ms() {
     Budget b = budget({800, 0, 1500, 0.5});
     CHECK(b.optimum == 1);
@@ -106,6 +113,7 @@ int main() {
     test_budget_opening();
     test_budget_endgame();
     test_budget_low_time_keeps_reserve();
+    test_budget_low_time_reserve_scales_with_clock();
     test_budget_below_reserve_is_one_ms();
     test_budget_phase_is_clamped();
     test_iteration_forced_move_is_zero();

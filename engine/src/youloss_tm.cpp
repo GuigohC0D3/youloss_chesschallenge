@@ -19,7 +19,8 @@ constexpr double  IncrementShare    = 0.8;
 constexpr double  MaxBaseMultiple   = 5.0;    // maximum <= 5 * base
 constexpr double  MaxRemainingShare = 0.25;   // maximum <= 0.25 * remaining
 constexpr int64_t LowTimeThreshold  = 10000;  // abaixo disso, reserva extra
-constexpr int64_t LowTimeReserve    = 1000;
+constexpr int64_t LowTimeReserve    = 1000;   // teto da reserva extra
+constexpr double  LowTimeShare      = 0.1;    // reserva extra <= 10% do restante
 
 // Ajustes por iteração
 constexpr double StabilityStart      = 1.35;
@@ -46,9 +47,13 @@ Budget budget(const BudgetInput& in) {
     const double remaining = double(std::max<int64_t>(in.remaining, 0));
     const double base      = remaining / horizon + IncrementShare * double(in.increment);
 
-    const int64_t reserve =
-      in.moveOverhead + (in.remaining < LowTimeThreshold ? LowTimeReserve : 0);
-    const double available = std::max(1.0, remaining - double(reserve));
+    // Abaixo de 10 s guarda até 1 s extra, proporcional ao relógio: uma reserva
+    // fixa zeraria o orçamento quando restar pouco mais de 1 s.
+    const double lowTimeReserve =
+      in.remaining < LowTimeThreshold ? std::min(double(LowTimeReserve), LowTimeShare * remaining)
+                                      : 0.0;
+    const double available =
+      std::max(1.0, remaining - double(in.moveOverhead) - lowTimeReserve);
 
     const double maximum =
       std::clamp(std::min(MaxBaseMultiple * base, MaxRemainingShare * remaining), 1.0, available);
