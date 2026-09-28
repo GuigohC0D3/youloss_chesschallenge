@@ -8,4 +8,9 @@
 - Bench de referência (sem modificações, 1 thread, `bench` padrão): 2497913 nós (Nodes searched) — igual ao `Bench:` oficial do commit
 
 ## Modificações autorais da equipe Youloss
-- Gestão de tempo (`src/youloss_tm.{h,cpp}`) — a partir da Sprint 2.
+- Gestão de tempo (`src/youloss_tm.{h,cpp}`, testes em `tests/youloss_tm_test.cpp`),
+  ativa pela opção UCI `YoulossTM` (padrão `true`; `false` restaura a original).
+- Ganchos mínimos: `search.cpp` (orçamento após `tm.init` e tempo-alvo por iteração),
+  `timeman.h` (`set_bounds`), `search.h` (flag `youlossTM`), `engine.cpp` (opção),
+  `Makefile` (novo fonte). Busca e avaliação não foram alteradas: o `bench`
+  continua em 2497913 nós.
