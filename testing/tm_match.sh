@@ -3,17 +3,16 @@
 # Uso: bash testing/tm_match.sh <tc> <rounds> [elo0 elo1]
 #   partidas fixas:  bash testing/tm_match.sh 10+0.1 100
 #   SPRT:            bash testing/tm_match.sh 60+0.6 50000 -5 0
-# Concorrência: CONC (padrão: núcleos físicos - 1). Deixe a máquina ociosa.
+# Concorrência: CONC (padrão: núcleos físicos - 1; no macOS, só os de performance). Deixe a máquina ociosa.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TC="${1:?uso: tm_match.sh <tc> <rounds> [elo0 elo1]}"
 ROUNDS="${2:?rounds}"
 ELO0="${3:-}"
 ELO1="${4:-}"
+source "$ROOT/scripts/platform.sh"
 if [ -z "${CONC:-}" ]; then
-  CORES=$(powershell -NoProfile -Command \
-    "(Get-CimInstance Win32_Processor | Measure-Object NumberOfCores -Sum).Sum" | tr -d '\r')
-  CONC=$(( CORES > 1 ? CORES - 1 : 1 ))
+  CONC=$(( PHYS_CORES > 1 ? PHYS_CORES - 1 : 1 ))
 fi
 BOOK="$ROOT/assets/openings/UHO_Lichess_4852_v1.epd"
 [ -s "$BOOK" ] || { echo "sem aberturas: rode scripts/fetch_openings.sh" >&2; exit 2; }
@@ -25,9 +24,9 @@ SPRT=()
 [ -n "$ELO0" ] && SPRT=(-sprt elo0="$ELO0" elo1="$ELO1" alpha=0.05 beta=0.05)
 
 cd "$OUT"  # fastchess grava config.json no cwd
-"$ROOT/tools/fastchess.exe" \
-  -engine cmd="$ROOT/bin/youloss.exe" name=tm option.YoulossTM=true \
-  -engine cmd="$ROOT/bin/youloss.exe" name=sf option.YoulossTM=false \
+"$ROOT/tools/fastchess$EXE" \
+  -engine cmd="$ROOT/bin/youloss$EXE" name=tm option.YoulossTM=true \
+  -engine cmd="$ROOT/bin/youloss$EXE" name=sf option.YoulossTM=false \
   -each tc="$TC" option.Threads=1 option.Hash=16 \
   -openings file="$BOOK" format=epd order=random \
   -rounds "$ROUNDS" -games 2 -concurrency "$CONC" -recover \
@@ -37,7 +36,7 @@ cd "$OUT"  # fastchess grava config.json no cwd
 
 cd "$ROOT"
 echo "== perfil de tempo ($NAME.pgn)"
-.venv/Scripts/python -m testing.time_profile "$OUT/$NAME.pgn"
+"$PY" -m testing.time_profile "$OUT/$NAME.pgn"
 if [ -n "$ELO0" ]; then
-  .venv/Scripts/python -m testing.sprt_result "$OUT/$NAME.log"
+  "$PY" -m testing.sprt_result "$OUT/$NAME.log"
 fi

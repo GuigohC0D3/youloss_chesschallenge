@@ -20,7 +20,7 @@ from controller.state import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ENGINE = ROOT / "bin" / "youloss.exe"
+DEFAULT_ENGINE = ROOT / "bin" / ("youloss.exe" if sys.platform == "win32" else "youloss")
 DEFAULT_BOOK = ROOT / "assets" / "book.bin"
 DEFAULT_SYZYGY = ROOT / "assets" / "syzygy"
 DEFAULT_LOGS = ROOT / "logs"

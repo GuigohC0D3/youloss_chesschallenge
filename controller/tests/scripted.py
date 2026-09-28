@@ -5,9 +5,10 @@ import sys
 from pathlib import Path
 
 from controller.engine_client import EngineClient
+from controller.main import DEFAULT_ENGINE
 
 FAKE = Path(__file__).with_name("fake_engine.py")
-REAL = Path(__file__).resolve().parents[2] / "bin" / "youloss.exe"
+REAL = DEFAULT_ENGINE
 
 
 def fake_engine(mode: str = "ok") -> EngineClient:

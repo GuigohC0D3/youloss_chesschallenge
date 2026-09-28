@@ -2,44 +2,49 @@
 # Compila o engine com PGO e copia para bin/. Rodar do root do repo.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-
-# O make do MSYS2 perde TMP/TEMP quando chamado pelo Git Bash (runtimes msys
-# diferentes) e o gcc falha com "Cannot create temporary file in C:\WINDOWS".
-# Reexecuta este script dentro do bash do próprio MSYS2 (UCRT64).
-if [ "${MSYSTEM:-}" != "UCRT64" ]; then
-  exec env MSYSTEM=UCRT64 CHERE_INVOKING=1 /c/msys64/usr/bin/bash -lc \
-    "cd '$(cygpath -u "$ROOT")' && bash scripts/build_engine.sh"
-fi
+source "$ROOT/scripts/platform.sh"
+msys_reexec scripts/build_engine.sh
 
 SRC="$ROOT/engine/src"
-JOBS="$(nproc)"
 mkdir -p "$ROOT/bin"
 
 # O Windows (antivírus) segura o .exe recém-executado por alguns segundos;
 # o objclean do profile-build do Stockfish falha com "Device or resource busy".
 wait_unlock() {
   for _ in $(seq 1 30); do
-    rm -f "$SRC/stockfish.exe" 2>/dev/null && return 0
+    rm -f "$SRC/stockfish$EXE" 2>/dev/null && return 0
     sleep 1
   done
-  echo "stockfish.exe continua bloqueado" >&2
+  echo "stockfish$EXE continua bloqueado" >&2
   return 1
 }
 
 # Equivalente ao target profile-build do Makefile, com espera entre os passos.
 build() {  # $1=ARCH  $2=nome do binário
-  local mk=(make -C "$SRC" ARCH="$1" COMP=mingw)
+  local mk profile
+  if is_mac; then
+    # O Makefile procura llvm-profdata ao lado do clang++ e não acha o do Xcode.
+    mk=(make -C "$SRC" ARCH="$1" COMP=clang LLVM_PROFDATA="$(xcrun -f llvm-profdata)")
+    profile=clang
+  else
+    mk=(make -C "$SRC" ARCH="$1" COMP=mingw)
+    profile=gcc
+  fi
   "${mk[@]}" clean >/dev/null
   "${mk[@]}" net config-sanity >/dev/null
-  "${mk[@]}" -j"$JOBS" gcc-profile-make
-  (cd "$SRC" && ./stockfish.exe bench > PGOBENCH.out 2>&1)
+  "${mk[@]}" -j"$JOBS" "$profile-profile-make"
+  (cd "$SRC" && "./stockfish$EXE" bench > PGOBENCH.out 2>&1)
   wait_unlock
   "${mk[@]}" objclean
-  "${mk[@]}" -j"$JOBS" gcc-profile-use
+  "${mk[@]}" -j"$JOBS" "$profile-profile-use"
   "${mk[@]}" profileclean
-  cp "$SRC/stockfish.exe" "$ROOT/bin/$2"
+  cp "$SRC/stockfish$EXE" "$ROOT/bin/$2$EXE"
 }
 
-build native youloss.exe
-build x86-64-avx2 youloss-avx2.exe
-"$ROOT/bin/youloss.exe" bench 2>&1 | tail -4
+if is_mac; then
+  build apple-silicon youloss
+else
+  build native youloss
+  build x86-64-avx2 youloss-avx2
+fi
+"$ROOT/bin/youloss$EXE" bench 2>&1 | tail -4

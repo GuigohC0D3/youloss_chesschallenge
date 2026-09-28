@@ -6,9 +6,10 @@ import pytest
 from controller.engine_client import (
     EngineClient, EngineCrashed, EngineError, EngineNotFound, EngineTimeout,
 )
+from controller.main import DEFAULT_ENGINE
 
 FAKE = Path(__file__).with_name("fake_engine.py")
-REAL = Path(__file__).resolve().parents[2] / "bin" / "youloss.exe"
+REAL = DEFAULT_ENGINE
 
 
 def fake(mode: str) -> EngineClient:
