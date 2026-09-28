@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="$ROOT/logs/smoke.log"
 mkdir -p "$ROOT/logs"
+# fastchess grava config.json (autosave) no cwd; mantém isso fora do root do repo.
+cd "$ROOT/logs"
 "$ROOT/tools/fastchess.exe" \
   -engine cmd="$ROOT/bin/youloss.exe" name=A \
   -engine cmd="$ROOT/bin/youloss.exe" name=B \
