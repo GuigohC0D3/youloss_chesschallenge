@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from controller.engine_client import (
-    EngineClient, EngineCrashed, EngineNotFound, EngineTimeout,
+    EngineClient, EngineCrashed, EngineError, EngineNotFound, EngineTimeout,
 )
 
 FAKE = Path(__file__).with_name("fake_engine.py")
@@ -47,3 +47,30 @@ def test_real_engine_handshake():
         eng.set_option("Threads", 1)
         eng.is_ready(timeout=10)
     assert "Stockfish" in info["name"]
+
+
+def test_restart_same_instance():
+    eng = fake("ok")
+    eng.start()
+    eng.handshake(timeout=5)
+    eng.quit()
+    eng.start()
+    info = eng.handshake(timeout=5)
+    eng.quit()
+    assert info["name"] == "FakeFish 1.0"
+
+
+def test_read_until_timeout_is_total_not_per_line():
+    import time
+    with fake("spam") as eng:
+        eng.send("go infinite")
+        t0 = time.monotonic()
+        with pytest.raises(EngineTimeout):
+            eng.read_until("bestmove", timeout=0.5)
+        assert time.monotonic() - t0 < 2.0
+
+
+def test_non_executable_raises_engine_error():
+    eng = EngineClient(FAKE)  # .py não é executável no Windows (WinError 193)
+    with pytest.raises(EngineError, match="fake_engine.py"):
+        eng.start()

@@ -4,6 +4,7 @@ from __future__ import annotations
 import queue
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 _EOF = object()
@@ -33,6 +34,10 @@ class EngineClient:
         self._lines: queue.Queue[object] = queue.Queue()
 
     def start(self) -> None:
+        if self._proc and self._proc.poll() is None:
+            self.quit()
+        # Fila nova por processo: o EOF/linhas do processo anterior não vazam.
+        self._lines = queue.Queue()
         try:
             self._proc = subprocess.Popen(
                 [self.path, *self.args],
@@ -46,13 +51,20 @@ class EngineClient:
             )
         except FileNotFoundError as exc:
             raise EngineNotFound(f"engine não encontrado: {self.path}") from exc
-        threading.Thread(target=self._pump, daemon=True).start()
+        except OSError as exc:
+            raise EngineError(f"falha ao iniciar {self.path}: {exc}") from exc
+        threading.Thread(
+            target=self._pump, args=(self._proc, self._lines), daemon=True
+        ).start()
 
-    def _pump(self) -> None:
-        assert self._proc and self._proc.stdout
-        for line in self._proc.stdout:
-            self._lines.put(line.rstrip("\r\n"))
-        self._lines.put(_EOF)
+    @staticmethod
+    def _pump(proc: subprocess.Popen[str], lines: queue.Queue[object]) -> None:
+        # Recebe proc/fila como argumentos: após um restart, a thread antiga
+        # continua presa à fila antiga e não contamina a do processo novo.
+        assert proc.stdout
+        for line in proc.stdout:
+            lines.put(line.rstrip("\r\n"))
+        lines.put(_EOF)
 
     def send(self, cmd: str) -> None:
         if not self._proc or not self._proc.stdin:
@@ -75,9 +87,14 @@ class EngineClient:
         return item  # type: ignore[return-value]
 
     def read_until(self, prefix: str, timeout: float) -> list[str]:
+        """Lê até a linha com `prefix`; `timeout` vale para a chamada inteira."""
+        deadline = time.monotonic() + timeout
         out: list[str] = []
         while True:
-            line = self.read_line(timeout)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise EngineTimeout(f"'{prefix}' não recebido em {timeout}s")
+            line = self.read_line(remaining)
             out.append(line)
             if line.startswith(prefix):
                 return out
