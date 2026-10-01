@@ -17,13 +17,81 @@ def test_h1_accepted():
 
 
 def test_h0_accepted():
-    code, _ = summarize(LOG_H1.replace("H1 was accepted", "H0 was accepted"))
+    text = LOG_H1.replace("LLR: 2.96", "LLR: -2.96").replace("H1 was accepted", "H0 was accepted")
+    code, line = summarize(text)
     assert code == 1
+    assert "H0" in line and "-2.96" in line
+
+
+def test_misleading_inbound_h1_marker():
+    text = LOG_H1.replace("LLR: 2.96", "LLR: 1.10")
+    code, line = summarize(text)
+    assert code == 2
+    assert "inconclusivo" in line and "1.10" in line
+
+
+def test_misleading_inbound_h0_marker():
+    text = LOG_H1.replace("LLR: 2.96", "LLR: -1.10").replace("H1 was accepted", "H0 was accepted")
+    code, line = summarize(text)
+    assert code == 2
+    assert "inconclusivo" in line and "-1.10" in line
+
+
+def test_missing_numeric_data():
+    text = LOG_H1.replace("LLR: 2.96 (100.5%) (-2.94, 2.94) [-5.00, 0.00]\n", "")
+    code, line = summarize(text)
+    assert code == 2
+    assert "inconclusivo" in line and "llr=?" in line
+
+
+def test_malformed_numeric_data():
+    text1 = LOG_H1.replace("LLR: 2.96 (100.5%) (-2.94, 2.94) [-5.00, 0.00]", "LLR: corrupt")
+    code1, line1 = summarize(text1)
+    assert code1 == 2 and "inconclusivo" in line1
+
+    text2 = LOG_H1.replace("(-2.94, 2.94)", "(bad, bounds)")
+    code2, line2 = summarize(text2)
+    assert code2 == 2 and "inconclusivo" in line2
+
+    text3 = LOG_H1.replace("LLR: 2.96 (100.5%) (-2.94, 2.94) [-5.00, 0.00]", "LLR: 2.96")
+    code3, line3 = summarize(text3)
+    assert code3 == 2 and "inconclusivo" in line3
+
+
+def test_llr_with_trailing_numeric_junk_is_inconclusive():
+    text = LOG_H1.replace("LLR: 2.96", "LLR: 3.0oops")
+    code, line = summarize(text)
+    assert code == 2 and "inconclusivo" in line
+
+
+def test_rounded_boundary_does_not_claim_sprt_acceptance():
+    text = LOG_H1.replace("LLR: 2.96", "LLR: 2.94")
+    code, line = summarize(text)
+    assert code == 2 and "inconclusivo" in line
+
+
+def test_zero_games_cannot_be_reported_as_accepted():
+    text = LOG_H1.replace("Games: 4000,", "Games: 0,")
+    code, line = summarize(text)
+    assert code == 2 and "inconclusivo" in line
+
+
+def test_mismatched_markers():
+    text_mismatch_h0 = LOG_H1.replace("H1 was accepted", "H0 was accepted")
+    code, line = summarize(text_mismatch_h0)
+    assert code == 2 and "inconclusivo" in line
+
+    text_mismatch_h1 = LOG_H1.replace("LLR: 2.96", "LLR: -2.96")
+    code, line = summarize(text_mismatch_h1)
+    assert code == 2 and "inconclusivo" in line
 
 
 def test_inconclusive_uses_last_block():
     text = LOG_H1.replace("SPRT ([-5.00, 0.00]) completed - H1 was accepted", "")
-    text += "Games: 5000, Wins: 1\nLLR: 1.10 (37.4%) (-2.94, 2.94) [-5.00, 0.00]\n"
+    text += (
+        "Games: 5000, Wins: 1, Losses: 1, Draws: 4998, Points: 2500.0 "
+        "(50.00 %)\nLLR: 1.10 (37.4%) (-2.94, 2.94) [-5.00, 0.00]\n"
+    )
     code, line = summarize(text)
     assert code == 2 and "5000" in line and "1.10" in line
 

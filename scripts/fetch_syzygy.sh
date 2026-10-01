@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Baixa as Syzygy 3-4-5 (WDL+DTZ) para assets/syzygy e registra sha256 em assets/MANIFEST.
-# Rodar do root do repo, com rede, ANTES do evento (FAQ itens 4 e 14). ~1 GB.
+# Opcional, somente se a organização confirmar o uso e o limite de peças. ~1 GB.
+# Rodar do root do repo, com rede, antes do evento; não requer rede durante a partida.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/platform.sh"
