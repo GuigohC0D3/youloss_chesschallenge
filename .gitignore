@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+almostglobal-results.sarif
 .superpowers/
 engine/src/*.o
 engine/src/stockfish
