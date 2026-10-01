@@ -47,5 +47,11 @@ regras confirmadas pelo PDF; só prepare/use esses assets após confirmação da
 organização. O engine e o controlador devem iniciar com os assets locais e sem
 rede no local do evento.
 
+## Contribuidores
+
+- [@GuigohC0D3](https://github.com/GuigohC0D3)
+- [@victorportelada](https://github.com/victorportelada)
+- [@yurihzz](https://github.com/yurihzz)
+
 ## Licença
 GPLv3 (herdada do Stockfish). Ver `engine/Copying.txt`.
