@@ -1,4 +1,5 @@
 """Estado da partida em JSON, gravado a cada lance para `start --resume`."""
+
 from __future__ import annotations
 
 import json
@@ -9,11 +10,23 @@ from pathlib import Path
 
 import chess
 
-STATE_VERSION = 1
+STATE_VERSION = 2
+SUPPORTED_VERSIONS = (1, 2)
 REPLACE_ATTEMPTS = 5
 _FIELD_TYPES = {
-    "color": str, "opponent": str, "game": int, "base_ms": int, "inc_ms": int,
-    "start_fen": str, "moves": list, "white_ms": int, "black_ms": int, "log_path": str,
+    "color": str,
+    "opponent": str,
+    "game": int,
+    "base_ms": int,
+    "inc_ms": int,
+    "start_fen": str,
+    "moves": list,
+    "white_ms": int,
+    "black_ms": int,
+    "log_path": str,
+    "pending_depth": int,
+    "pending_seldepth": int,
+    "pending_nodes": int,
 }
 
 
@@ -35,6 +48,17 @@ class GameState:
     log_path: str = ""
     result: str | None = None  # "1-0" | "0-1" | "1/2-1/2"
     reason: str | None = None
+    # Proposta pendente (v2): lance sugerido pelo engine/book ainda NÃO jogado
+    # no tabuleiro físico. Só vira lance após `played` (confirmação única).
+    # Ausente (None) em arquivos v1.
+    pending_uci: str | None = None
+    pending_source: str | None = None  # "engine" | "book" | "forced" | "fallback"
+    pending_depth: int = 0
+    pending_seldepth: int = 0
+    pending_nodes: int = 0
+    pending_score_cp: int | None = None
+    pending_score_mate: int | None = None
+    pending_pv: list[str] = field(default_factory=list)
 
     @property
     def finished(self) -> bool:
@@ -78,9 +102,39 @@ def _check_types(state: GameState, path: str | Path) -> None:
         raise StateError(f"estado com cor inválida: {path}: {state.color!r}")
     if not all(isinstance(uci, str) for uci in state.moves):
         raise StateError(f"estado com lances inválidos: {path}: {state.moves!r}")
-    for name in ("result", "reason"):
-        if getattr(state, name) is not None and not isinstance(getattr(state, name), str):
+    for name in ("result", "reason", "pending_uci", "pending_source"):
+        if getattr(state, name) is not None and not isinstance(
+            getattr(state, name), str
+        ):
             raise StateError(f"estado com campo inválido: {path}: {name}")
+    for name in ("pending_score_cp", "pending_score_mate"):
+        value = getattr(state, name)
+        if value is not None and (
+            not isinstance(value, int) or isinstance(value, bool)
+        ):
+            raise StateError(f"estado com campo inválido: {path}: {name}={value!r}")
+    if not isinstance(state.pending_pv, list) or not all(
+        isinstance(uci, str) for uci in state.pending_pv
+    ):
+        raise StateError(
+            f"estado com PV pendente inválida: {path}: {state.pending_pv!r}"
+        )
+    if state.pending_source is not None and state.pending_source not in (
+        "engine",
+        "book",
+        "forced",
+        "fallback",
+    ):
+        raise StateError(
+            f"estado com proposta inválida: {path}: {state.pending_source!r}"
+        )
+    if (state.pending_uci is None) != (state.pending_source is None):
+        raise StateError(f"estado com proposta incompleta: {path}")
+    if state.pending_uci is not None:
+        try:
+            chess.Move.from_uci(state.pending_uci)
+        except ValueError as exc:
+            raise StateError(f"estado com proposta inválida: {path}: {exc}") from exc
 
 
 def load_state(path: str | Path) -> GameState:
@@ -90,8 +144,12 @@ def load_state(path: str | Path) -> GameState:
         raise StateError(f"estado não encontrado: {path}") from exc
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise StateError(f"estado corrompido ou ilegível: {path}: {exc}") from exc
-    if not isinstance(data, dict) or data.pop("version", None) != STATE_VERSION:
+    if (
+        not isinstance(data, dict)
+        or data.pop("version", None) not in SUPPORTED_VERSIONS
+    ):
         raise StateError(f"versão de estado não suportada: {path}")
+    # v1 não tem os campos pending_*: os defaults do dataclass cobrem a leitura.
     try:
         state = GameState(**data)
     except TypeError as exc:
@@ -110,7 +168,9 @@ def state_path_for(log_path: str | Path) -> Path:
 
 def latest_unfinished(logs_dir: str | Path) -> Path | None:
     paths = sorted(
-        Path(logs_dir).glob("*.state.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        Path(logs_dir).glob("*.state.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
     )
     for path in paths:
         try:

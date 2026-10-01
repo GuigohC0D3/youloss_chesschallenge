@@ -5,13 +5,27 @@ import chess
 import pytest
 
 from controller.state import (
-    GameState, StateError, latest_unfinished, load_state, save_state, state_path_for,
+    GameState,
+    StateError,
+    latest_unfinished,
+    load_state,
+    save_state,
+    state_path_for,
 )
 
 
 def sample(**kw) -> GameState:
-    base = dict(color="white", opponent="x", game=1, base_ms=900_000, inc_ms=10_000,
-                moves=["e2e4", "e7e5"], white_ms=880_000, black_ms=870_000, log_path="l.log")
+    base = dict(
+        color="white",
+        opponent="x",
+        game=1,
+        base_ms=900_000,
+        inc_ms=10_000,
+        moves=["e2e4", "e7e5"],
+        white_ms=880_000,
+        black_ms=870_000,
+        log_path="l.log",
+    )
     base.update(kw)
     return GameState(**base)
 
@@ -35,14 +49,20 @@ def test_finished():
 
 
 def test_state_path_for(tmp_path):
-    assert state_path_for(tmp_path / "2026-10-28_x_g1.log") == tmp_path / "2026-10-28_x_g1.state.json"
+    assert (
+        state_path_for(tmp_path / "2026-10-28_x_g1.log")
+        == tmp_path / "2026-10-28_x_g1.state.json"
+    )
 
 
-@pytest.mark.parametrize("content, match", [
-    ("{meio escrito", "corrompido"),
-    (json.dumps({"version": 99}), "versão"),
-    (json.dumps({"version": 1, "color": "white"}), "campos"),
-])
+@pytest.mark.parametrize(
+    "content, match",
+    [
+        ("{meio escrito", "corrompido"),
+        (json.dumps({"version": 99}), "versão"),
+        (json.dumps({"version": 1, "color": "white"}), "campos"),
+    ],
+)
 def test_bad_files_raise_state_error(tmp_path, content, match):
     path = tmp_path / "g.state.json"
     path.write_text(content, encoding="utf-8")
@@ -75,14 +95,17 @@ def test_latest_unfinished(tmp_path):
     assert latest_unfinished(tmp_path / "vazio") is None
 
 
-@pytest.mark.parametrize("patch", [
-    {"moves": None},
-    {"moves": [1, 2]},
-    {"color": "red"},
-    {"white_ms": "abc"},
-    {"game": True},
-    {"result": 1},
-])
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"moves": None},
+        {"moves": [1, 2]},
+        {"color": "red"},
+        {"white_ms": "abc"},
+        {"game": True},
+        {"result": 1},
+    ],
+)
 def test_wrong_field_types_raise_state_error(tmp_path, patch):
     path = tmp_path / "g.state.json"
     save_state(sample(), path)
@@ -103,6 +126,7 @@ def test_undecodable_file_raises_state_error_and_is_skipped(tmp_path):
 
 def test_save_retries_when_file_is_locked(tmp_path, monkeypatch):
     import controller.state as state_mod
+
     real_replace = os.replace
     calls = []
 
@@ -115,3 +139,63 @@ def test_save_retries_when_file_is_locked(tmp_path, monkeypatch):
     monkeypatch.setattr(state_mod.os, "replace", flaky_replace)
     save_state(sample(), tmp_path / "g.state.json")
     assert len(calls) == 2 and load_state(tmp_path / "g.state.json") == sample()
+
+
+def test_pending_proposal_roundtrip(tmp_path):
+    path = tmp_path / "g.state.json"
+    s = sample(
+        pending_uci="e2e4",
+        pending_source="engine",
+        pending_depth=12,
+        pending_seldepth=20,
+        pending_nodes=999,
+        pending_score_cp=35,
+        pending_score_mate=None,
+        pending_pv=["e2e4", "e7e5"],
+    )
+    save_state(s, path)
+    assert load_state(path) == s
+
+
+def test_v1_state_still_loads(tmp_path):
+    import json as _json
+
+    from controller.state import STATE_VERSION
+
+    assert STATE_VERSION == 2
+    path = tmp_path / "g.state.json"
+    save_state(sample(), path)
+    data = _json.loads(path.read_text(encoding="utf-8"))
+    for key in [k for k in data if k.startswith("pending_")]:
+        del data[key]
+    data["version"] = 1
+    path.write_text(_json.dumps(data), encoding="utf-8")
+    loaded = load_state(path)
+    assert loaded.pending_uci is None and loaded.pending_source is None
+    assert loaded.moves == ["e2e4", "e7e5"]
+
+
+def test_bad_pending_rejected(tmp_path):
+    import json as _json
+
+    path = tmp_path / "g.state.json"
+    save_state(sample(), path)
+    data = _json.loads(path.read_text(encoding="utf-8"))
+    data["pending_uci"] = "e2e4"
+    data["pending_source"] = None
+    path.write_text(_json.dumps(data), encoding="utf-8")
+    with pytest.raises(StateError):
+        load_state(path)
+
+
+@pytest.mark.parametrize("bad_pv", ["e2e4", 123, {"a": 1}, ["e2e4", 42], None])
+def test_malformed_pending_pv_raises_state_error_not_type_error(tmp_path, bad_pv):
+    import json as _json
+
+    path = tmp_path / "g.state.json"
+    save_state(sample(), path)
+    data = _json.loads(path.read_text(encoding="utf-8"))
+    data["pending_pv"] = bad_pv
+    path.write_text(_json.dumps(data), encoding="utf-8")
+    with pytest.raises(StateError):
+        load_state(path)

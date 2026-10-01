@@ -1,4 +1,5 @@
 """Log .log por lance (FAQ item 9), com flush e fsync a cada linha."""
+
 from __future__ import annotations
 
 import os
@@ -14,8 +15,8 @@ _UCI = r"[a-h][1-8][a-h][1-8][qrbn]?"
 LINE_RE = re.compile(
     rf"^move=\d+ color=(?:white|black) uci={_UCI} (?:"
     rf"depth=\d+ seldepth=\d+ nodes=\d+ "
-    rf"eval=(?:[+-]\d+\.\d{{2}}|-?M\d+|book|forced|none) "
-    rf'pv="(?:{_UCI}(?: {_UCI})*)?" time_ms=\d+ source=(?:engine|book|forced|ponderhit)'
+    rf"eval=(?:[+-]\d+\.\d{{2}}|-?M\d+|book|forced|fallback|none) "
+    rf'pv="(?:{_UCI}(?: {_UCI})*)?" time_ms=\d+ source=(?:engine|book|forced|fallback|ponderhit)'
     rf"|time_ms=\d+ source=opponent)$"
 )
 
@@ -49,14 +50,21 @@ class GameLog:
         os.fsync(self._f.fileno())
 
     def header(self, **fields: object) -> None:
-        parts = [f'{k}="{v}"' if " " in str(v) else f"{k}={v}" for k, v in fields.items()]
+        parts = [
+            f'{k}="{v}"' if " " in str(v) else f"{k}={v}" for k, v in fields.items()
+        ]
         self._write("# " + " ".join(parts))
 
     def note(self, text: str) -> None:
         self._write(f"# {text}")
 
     def our_move(
-        self, move_no: int, color: str, uci: str, source: str, time_ms: int,
+        self,
+        move_no: int,
+        color: str,
+        uci: str,
+        source: str,
+        time_ms: int,
         info: SearchInfo | None = None,
     ) -> None:
         if info is not None:
@@ -72,7 +80,9 @@ class GameLog:
         )
 
     def opponent_move(self, move_no: int, color: str, uci: str, time_ms: int) -> None:
-        self._write(f"move={move_no} color={color} uci={uci} time_ms={time_ms} source=opponent")
+        self._write(
+            f"move={move_no} color={color} uci={uci} time_ms={time_ms} source=opponent"
+        )
 
     def result(self, result: str, reason: str) -> None:
         self._write(f"# result={result} reason={reason}")

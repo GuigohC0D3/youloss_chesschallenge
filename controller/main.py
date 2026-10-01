@@ -1,7 +1,9 @@
 """CLI do operador: `python -m controller.main start ...`."""
+
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from datetime import date
 from pathlib import Path
@@ -16,11 +18,18 @@ from controller.game import Game
 from controller.game_log import GameLog, log_path
 from controller.runtime import runtime_options
 from controller.state import (
-    GameState, StateError, latest_unfinished, load_state, save_state, state_path_for,
+    GameState,
+    StateError,
+    latest_unfinished,
+    load_state,
+    save_state,
+    state_path_for,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_ENGINE = ROOT / "bin" / ("youloss.exe" if sys.platform == "win32" else "youloss")
+DEFAULT_ENGINE = (
+    ROOT / "bin" / ("youloss.exe" if sys.platform == "win32" else "youloss")
+)
 DEFAULT_BOOK = ROOT / "assets" / "book.bin"
 DEFAULT_SYZYGY = ROOT / "assets" / "syzygy"
 DEFAULT_LOGS = ROOT / "logs"
@@ -30,23 +39,55 @@ class UsageError(Exception):
     pass
 
 
+def _parse_clock_latency(val_str: str) -> float:
+    try:
+        val = float(val_str)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"latência de relógio inválida: {val_str!r}")
+    if not math.isfinite(val) or val < 0.0 or val > 60.0:
+        raise argparse.ArgumentTypeError(
+            f"latência de relógio fora da faixa [0.0, 60.0]s ou não finita: {val_str!r}"
+        )
+    return val
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m controller.main")
     sub = parser.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("start", help="inicia ou retoma uma partida")
     s.add_argument("--color", choices=["white", "black"], help="nosso lado")
-    s.add_argument("--tc", default="900+10", help="base+inc em segundos (padrão 900+10)")
+    s.add_argument(
+        "--tc",
+        default="1500+0",
+        help="base+inc em segundos (padrão 1500+0 PROVISÓRIO: "
+        "interpretação de '25 min cada' — o PDF dá 25 minutos "
+        "mas não define incremento)",
+    )
     s.add_argument("--opponent", default="adversario")
     s.add_argument("--game", type=int, default=1)
-    s.add_argument("--resume", nargs="?", const="latest", metavar="STATE",
-                   help="retoma a última partida em andamento (ou o .state.json dado)")
+    s.add_argument(
+        "--resume",
+        nargs="?",
+        const="latest",
+        metavar="STATE",
+        help="retoma a última partida em andamento (ou o .state.json dado)",
+    )
     s.add_argument("--engine", type=Path, default=DEFAULT_ENGINE)
-    s.add_argument("--book", type=Path, help=f"book Polyglot (padrão {DEFAULT_BOOK} se existir)")
+    s.add_argument(
+        "--book", type=Path, help=f"book Polyglot (padrão {DEFAULT_BOOK} se existir)"
+    )
     s.add_argument("--no-book", action="store_true")
     s.add_argument("--syzygy", type=Path, default=DEFAULT_SYZYGY)
     s.add_argument("--logs", type=Path, default=DEFAULT_LOGS)
     s.add_argument("--threads", type=int)
     s.add_argument("--hash", type=int, dest="hash_mb", metavar="MB")
+    s.add_argument(
+        "--clock-latency",
+        type=_parse_clock_latency,
+        default=2.0,
+        help="dedução conservadora de latência de leitura/digitação do relógio em segundos "
+        "(padrão 2.0s provisório: 1.0s granularidade + 1.0s digitação; a ser medido em rehearsal)",
+    )
     return parser
 
 
@@ -57,9 +98,16 @@ def _new_state(args: argparse.Namespace) -> tuple[GameState, Path]:
     path = log_path(args.logs, args.opponent, args.game, date.today())
     if path.exists():
         raise UsageError(f"log já existe: {path} (use --resume ou outro --game)")
-    state = GameState(color=args.color, opponent=args.opponent, game=args.game,
-                      base_ms=base_ms, inc_ms=inc_ms, white_ms=base_ms, black_ms=base_ms,
-                      log_path=str(path))
+    state = GameState(
+        color=args.color,
+        opponent=args.opponent,
+        game=args.game,
+        base_ms=base_ms,
+        inc_ms=inc_ms,
+        white_ms=base_ms,
+        black_ms=base_ms,
+        log_path=str(path),
+    )
     # Nada é gravado aqui: estado e log só nascem depois que o engine abrir,
     # para que uma falha no início permita repetir o mesmo `start`.
     return state, state_path_for(path)
@@ -88,8 +136,10 @@ def _book_path(args: argparse.Namespace) -> Path | None:
 
 def _recovery_hint(state_path: Path) -> str:
     if state_path.exists():
-        return (f"estado salvo em {state_path}; "
-                "retome com: python -m controller.main start --resume")
+        return (
+            f"estado salvo em {state_path}; "
+            "retome com: python -m controller.main start --resume"
+        )
     return "nada foi gravado; corrija o problema e repita o mesmo start"
 
 
@@ -140,13 +190,41 @@ def main(
         if resumed:
             log.note("resume")
         else:
-            log.header(engine=name, color=state.color, opponent=state.opponent,
-                       game=state.game, tc=args.tc, start_fen=state.start_fen)
-        game = Game(state, state_path, engine, book, log, clock,
-                    input_fn=input_fn, output_fn=output_fn, paused=resumed)
-        output_fn(f"{name} | nós: {state.color} | adversário: {state.opponent} | log: {log.path}")
+            log.header(
+                engine=name,
+                color=state.color,
+                opponent=state.opponent,
+                game=state.game,
+                tc=args.tc,
+                start_fen=state.start_fen,
+            )
+        game = Game(
+            state,
+            state_path,
+            engine,
+            book,
+            log,
+            clock,
+            input_fn=input_fn,
+            output_fn=output_fn,
+            paused=resumed,
+            needs_reconciliation=resumed,
+            clock_latency_s=args.clock_latency,
+        )
+        output_fn(
+            f"{name} | nós: {state.color} | adversário: {state.opponent} | log: {log.path}"
+        )
+        if args.tc == "1500+0" and not resumed:
+            output_fn(
+                "Tempo 1500+0 PROVISÓRIO: interpretação de '25 min cada' "
+                "(o PDF dá 25 minutos mas não define incremento)"
+            )
         if resumed:
             game.show_board()
+            output_fn(
+                "ressincronize com 'fen <FEN>' e 'clock <nós mm:ss> <adv mm:ss>' "
+                "(proposta pendente nunca é auto-confirmada)"
+            )
         game.run()
     except (EngineError, OSError) as exc:
         kind = "DO ENGINE" if isinstance(exc, EngineError) else "DE E/S"

@@ -10,7 +10,7 @@ from pathlib import Path
 
 MOVE_OVERHEAD_MS = 1500
 HASH_CAP_MB = 16 * 1024
-SYZYGY_PROBE_LIMIT = 5  # FAQ item 4: no máximo 5 peças
+SYZYGY_PROBE_LIMIT = 5  # Conservative project assumption; organizer permission is unconfirmed.
 
 
 def _darwin_free_mb() -> int:

@@ -1,4 +1,11 @@
-"""Relógio da partida: um contador por lado, com incremento a cada lance."""
+"""Relógio da partida: um contador por lado, com incremento a cada lance.
+
+O relógio físico (manual) é autoritativo; este `GameClock` é apenas uma
+estimativa interna. Sincronize com o físico via `set` (comando `clock`);
+`press` troca o lado que corre e `start` liga um lado sem incremento para
+quem parou. O relógio nasce parado (`running is None`) e só anda após um
+evento físico explícito (`begin`/`press`/`played`/`fen`/`undo`)."""
+
 from __future__ import annotations
 
 import re
@@ -81,6 +88,13 @@ class GameClock:
         self.running = not side
         self._since = t
         return spent
+
+    def stop(self) -> None:
+        """Para o relógio interno (fail closed): liquida o lado que corria."""
+        t = self._now()
+        self._settle(t)
+        self.running = None
+        self._since = t
 
     def set(self, color: chess.Color, ms: int) -> None:
         t = self._now()
