@@ -4,22 +4,24 @@
 **For:** Next project reviewer/agent
 **Repository:** Youloss Chess Challenge repository root (local path omitted)
 **Branch:** victor
-**HEAD:** 207a0734fd5f135703eff176f41f652c6a680397
-**State:** Pre-closeout snapshot of a dirty shared checkout. The user later authorized organized commits and a push on 2026-10-01.
+**Initial snapshot HEAD:** 207a0734fd5f135703eff176f41f652c6a680397
+**State:** This handoff preserves earlier snapshots and adds the 2026-10-01 closeout. The starting point for the closeout was a clean `victor` branch at `f143ffbe11f065e83638c8a6f79b92aad5a88b10`, synchronized with `origin/victor`; subsequent handoff edits are recorded below.
 
 ## Project objective
 
 Prepare a Stockfish 19-derived chess engine with an original time manager and Python controller for the local-only III Chess Challenge. The operator uses a physical board and manual clock. The project aims to be tournament-compliant, reliable under clock pressure, and supported by honest strength evidence. Bench parity and short screens are integrity checks; they do not establish playing strength.
 
-The review reports the tournament on Nov 6, 2026, a Nov 3 change/registration cutoff, and Nov 4 Git submission, but these are unverified here with no PDF page cited. It reportedly says 25 minutes per side with no increment identified, so 1500+0 remains provisional pending organizer confirmation. The reviewed PDF was a local file and is not included in this repository; obtain it for independent rule review.
+The official [event rules PDF](https://www.somosicev.com/wp-content/uploads/2026/09/Chess-Challenge-III-1.pdf) and [event announcement](https://www.somosicev.com/icev-abre-inscricoes-para-o-iii-chess-challenge-torneio-que-une-programacao-e-xadrez/) were reviewed on 2026-10-01. The rules confirm the event date (Nov 6, 2026), team-change cutoff (Nov 3), Git submission by email to `icev@somosicev.com` on Nov 4, 25 minutes per player, player-operated clocks, a physical board, player responsibility for moving pieces, no online software or external API communication, and losses for a flag or software failure. They do not specify an increment; `1500+0` remains the controller's provisional interpretation. Exact clock operation, local books/tablebases/ponder, illegal-move and draw procedure, and whether the current YoulossTM satisfies the significant-algorithm-modification rule remain to be confirmed.
+
+The official PDF also contradicts itself about the number of qualifying rounds and knockout bracket: it contains “5 quatro rodadas,” says the top eight advance to semifinals/final, and separately schedules a round of 16 and quarterfinals. The announcement and PDF also give different venue names in different locations. Ask the organizers to clarify these items before relying on the schedule or venue details.
 
 ## Current repository state
 
-- At the handoff snapshot, branch victor tracked origin/victor at the same commit. A fresh `git fetch origin` during the 2026-10-01 closeout confirmed no divergence before the new commits. The local sprint0-fundacao branch was four commits behind its cached upstream.
-- The shared worktree was dirty at the handoff snapshot. Do not reset or clean unrelated local data. The snapshot contained controller, harness, plan/spec, README, and handoff changes later reviewed and included in the closeout, plus macOS `.DS_Store` artifacts excluded from commits.
+- At the handoff snapshot, branch victor tracked origin/victor at the same commit. A fresh `git fetch origin` during the 2026-10-01 closeout confirmed no divergence before the closeout commits. The local sprint0-fundacao branch was four commits behind its cached upstream.
+- The shared worktree was dirty at the handoff snapshot. Its controller, harness, plan/spec, README, and handoff changes were reviewed and included in the closeout; macOS `.DS_Store` artifacts were excluded. Five closeout commits were pushed to `origin/victor`; the checkout was clean and synchronized after a fresh post-push fetch.
 - Current local assets include bin/youloss, tools/fastchess, .venv, and assets/openings/UHO_Lichess_4852_v1.epd. The later 2026-09-30 review addendum records the EPD matching assets/MANIFEST and scripts/verify_assets.sh passing. No Polyglot book or Syzygy tablebases are present.
 - Runner pin: fastchess v1.8.2-alpha, commit f618e34540f94f4719ad3817950618dabe441318. Recorded fastchess SHA256 38a7b822c711afd9435d8be91482e555c5b8e2d5414fd2c91de7e6db93baa6ab matched tools/fastchess.build.json. Recorded UHO EPD SHA256 7a7f6470615a69c6cf23d565417701d38732876f480af90d67b42abade35644a. Alpha-versus-stable policy is unresolved.
-- scripts/fetch_openings.sh appeared as newly modified during the last bounded verification; its attribution was unknown then. Current worktree still has it modified.
+- `scripts/fetch_openings.sh` was an unexplained modification in the pre-closeout snapshot; it was reviewed and included in the pushed closeout.
 - Vault pull failed with `fatal: Not possible to fast-forward, aborting`; no vault files were changed, so this handoff is based on the checkout, existing project docs, and available session context.
 
 ## Work completed in this conversation
@@ -41,6 +43,8 @@ The review reports the tournament on Nov 6, 2026, a Nov 3 change/registration cu
 - `./.venv/bin/python -m pytest controller/tests testing/tests -q` — 213 passed, 1 skipped in 37.41s.
 - Targeted partial-SPRT-argument regression cases — 2 passed in 0.12s.
 - `git diff --check` — exit 0.
+- `almostGlobal` quality run — 91/100, passed, no secret findings. Two Semgrep warnings point to unchanged `engine/src/shm_unix.h`; the resilience check skipped because `DATABASE_URL` was unset.
+- Fresh official-rule review — confirms the event date, deadlines, 25-minute allocation, physical-board/manual-clock operation, offline/API restriction, and flag/software-failure losses. See the source links above; remaining interpretations are listed below.
 
 **Focused tests from the defect repair:**
 
@@ -68,25 +72,24 @@ The review reports the tournament on Nov 6, 2026, a Nov 3 change/registration cu
 
 ## Remaining work, in priority order
 
-1. Independently review the current shared diff, especially controller clock/game/runtime behavior, testing/sprt_result.py, testing/check_fastchess_log.sh, testing/tm_match.sh, and their regressions. Verify the checker against the pinned runner's actual output. Do not assume the dirty diff has one author.
-2. Ask organizers for written rulings on 1500+0/manual clock protocol, significant modification requirements, book/tablebase/ponder permissions, crash/draw/illegal-move procedures, submission channel and exact cutoff.
-3. Measure the provisional 2.0-second operator latency and rehearse physical-board operation: low-time recovery, corrections, promotion, draw handling, resume reconciliation, clock corrections, and fault injection.
-4. Select M4 thread/hash profile from sustained thermals, throughput, latency, memory pressure and swap measurements. Existing 1-thread/16-MiB and 4-thread/512-MiB runs are short screens, not sustained profile evidence.
-5. Before strength testing, freeze binary/options/opening holdout and preregister paired-color sample size, stopping/acceptance rules, and compute budget. Keep all failures/inconclusive outcomes. No engine/src C++ or YoulossTM heuristic tuning was done here and no accepted SPRT exists; strength improvements remain pending.
-6. Complete release readiness: clean-clone build with local dependencies; offline startup from release artifact; runtime asset/checksum audit; rollback artifact; GPL/provenance and algorithm documentation. Resolve alpha-runner policy before relying on results.
-7. Keep physical-clock rehearsal and tournament readiness separate from engine-to-engine fastchess results.
+1. Request organizer clarification of: clock increment and exact hands-on protocol; local book/tablebase/ponder policy; illegal-move and draw handling; qualifying-round count, knockout bracket, and venue; whether the documented YoulossTM algorithm meets the significant-modification criterion; and the exact Git submission/validation procedure. The PDF already confirms Nov 4 email submission to `icev@somosicev.com`, 25 minutes per player, and losses on flag or software failure. No message has been sent.
+2. Measure the provisional 2.0-second operator latency and rehearse physical-board operation with the actual clock: low-time recovery, corrections, promotion, draw handling, resume reconciliation, clock corrections, and fault injection.
+3. Select the M4 thread/hash profile from sustained, AC-powered thermals, throughput, latency, memory pressure, and swap measurements. Existing 1-thread/16-MiB and 4-thread/512-MiB runs are short screens, not sustained profile evidence.
+4. Before a strength study, freeze the binary, options, and opening holdout, then preregister paired-color sample size, stopping/acceptance rules, and compute budget. Keep failed and inconclusive outcomes. No accepted SPRT or strength conclusion exists.
+5. Complete release readiness: clean-clone build, offline startup from the release artifact, runtime asset/checksum audit, rollback artifact, and license/provenance review. The GPLv3 text, Stockfish origin commit, and current YoulossTM algorithm summary are present; verify the exact submitted source and binary together. The pinned runner remains `v1.8.2-alpha`, still marked Latest on the [upstream release list](https://github.com/Disservin/fastchess/releases) when checked on 2026-10-01; all listed versions are alpha. Do not use it for a strength conclusion without explicitly accepting that limitation.
+6. Keep physical-clock rehearsal and tournament readiness separate from engine-to-engine fastchess results.
 
 ## Dates and caveats
 
-The project plan's P0–P5 date windows are roadmap proposals, not all confirmed commitments. The event and submission dates above are recorded from the reviewed PDF and should be checked against the attachment. The plan assumes engine, controller/operator, and testing/release roles, but names are unassigned.
+The project plan's P0–P5 date windows are roadmap proposals, not all confirmed commitments. Event facts above come from the official rules and announcement linked above; both contain wording inconsistencies that need organizer clarification. The plan assumes engine, controller/operator, and testing/release roles, but names are unassigned.
 
 The 2026-09-30 bounded note originally said the UHO asset was missing and only a synthetic two-game smoke had been run. Later same-day review evidence supersedes that snapshot: UHO is present, asset verification reportedly passed, and paired screening runs were recorded. Fuller historical evidence remains in local-only review materials and is not part of this repository.
 
-No long SPRT, sustained thermal run, organizer confirmation, physical-operator rehearsal, or outbound message is recorded as complete. At the handoff snapshot there was no commit/push request; the user authorized the closeout commits and push later on 2026-10-01. No future owner assignment is known.
+No long SPRT, sustained thermal run, organizer clarification, or physical-operator rehearsal is recorded as complete. No outbound message has been sent. Five closeout commits were authorized, reviewed, and pushed on 2026-10-01; `victor` was clean and synchronized with `origin/victor` after fetch. No future owner assignment is known.
 
 ## Reviewer checklist
 
-Return prioritized findings with file/evidence references. Separate verified facts, reported historical results, inference, and recommendations. Identify contradictions or stale claims. Recommend the single highest-value next action and give a concrete completion/verification condition. Review read-only first; do not commit or modify the shared checkout without a separate request.
+Return prioritized findings with file/evidence references. Separate verified facts, reported historical results, inference, and recommendations. Identify contradictions or stale claims. Recommend the single highest-value next action and give a concrete completion/verification condition. Check current branch/worktree state and session authorization before further mutations.
 
 ## Source manifest
 
