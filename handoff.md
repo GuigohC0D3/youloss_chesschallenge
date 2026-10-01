@@ -45,6 +45,8 @@ The official PDF also contradicts itself about the number of qualifying rounds a
 - `git diff --check` — exit 0.
 - `almostGlobal` quality run — 91/100, passed, no secret findings. Two Semgrep warnings point to unchanged `engine/src/shm_unix.h`; the resilience check skipped because `DATABASE_URL` was unset.
 - Fresh official-rule review — confirms the event date, deadlines, 25-minute allocation, physical-board/manual-clock operation, offline/API restriction, and flag/software-failure losses. See the source links above; remaining interpretations are listed below.
+- `bash scripts/check_toolchain.sh` — passed on this Apple M4/macOS host.
+- `bash scripts/verify_assets.sh` — the one tracked manifest asset verified successfully. The engine, fastchess, virtual environment, and UHO test file are local ignored artifacts, not included in a clean Git clone.
 
 **Focused tests from the defect repair:**
 
@@ -55,7 +57,7 @@ The official PDF also contradicts itself about the number of qualifying rounds a
 **Bounded checks from the follow-up:**
 
 - ./.venv/bin/python3 -m pytest testing/tests/test_engine_tm.py::test_bench_unchanged -q — 1 passed in 7.12s; expected 2,497,913 nodes. This confirms bench parity, not strength.
-- Offline UCI startup (uci, isready, quit) returned 0 with uciok and readyok under 10 seconds; local only, no network.
+- Offline UCI startup was rechecked on 2026-10-01 using the existing local `bin/youloss`: `uci`, `isready`, and `quit` returned 0 with `uciok` and `readyok` under 10 seconds; local only, no network. A clean-clone source build is still outstanding.
 - Real fastchess direct smoke used a temporary legal start-position EPD, real engine in both YoulossTM modes, one round/two games, and a 20-second process-group cap. It completed in 17.3 seconds, runner exit 0, two draws, PGN showed both color orientations. No -recover; config/PGN stayed under /tmp. At that point the UHO asset was absent; it was fetched and verified in later recorded work.
 - Raw output was saved in the local agent scratchpad and is not included in this repository.
 
