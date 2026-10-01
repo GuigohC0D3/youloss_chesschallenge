@@ -1,8 +1,15 @@
 # Sprint 1 — Controller MVP Implementation Plan
 
+> **Nota de estado (2026-09-30):** Plano histórico, escrito com requisitos de
+> FAQ ainda não confirmados. Use `README.md` e o roadmap
+> `2026-09-28-local-tournament-excellence.md` para a regra provisória atual
+> (`1500+0`) e o protocolo de relógio físico. Os limites de book/tablebase,
+> ponder e formato de log abaixo são premissas do projeto até confirmação da
+> organização, não regras verificadas do PDF.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** CLI do operador que joga uma partida completa contra um adversário externo: relógio, book, Syzygy, log por lance, comandos do operador e retomada após crash.
+**Goal:** CLI do operador para jogar uma partida completa: relógio, assets opcionais, log por lance, comandos do operador e reconciliação explícita de estado. Conforme a regra do evento, `--resume` não recupera uma partida perdida por crash.
 
 **Architecture:** O controller é dividido em módulos pequenos e testáveis isoladamente (`clock`, `book`, `game_log`, `state`, `runtime`), com o loop da partida em `game.py`. `game.py` recebe todas as dependências injetadas (engine, book, log, relógio, funções de entrada e saída), então os testes rodam o loop com um engine falso e respostas roteirizadas. `main.py` só monta as peças a partir dos argumentos. O engine continua sendo acessado apenas via UCI pelo `EngineClient`, que ganha o método `search`.
 
@@ -14,15 +21,15 @@
 
 - Commits **sem** linhas `Co-Authored-By` de IA ou qualquer atribuição de IA.
 - Nenhuma dependência de rede em runtime. Downloads (Syzygy, book) só por script, antes do evento.
-- Book consultado só enquanto `ply < 10` (FAQ item 3).
-- Tablebases: apenas Syzygy 3-4-5 em `assets/syzygy`; `SyzygyProbeLimit=5` (FAQ item 4).
-- Relógio 15+10: o controller envia `wtime/btime/winc/binc` (FAQ item 7).
+- Livro Polyglot até `ply < 10` era uma premissa conservadora; o PDF não confirma permissão nem limite.
+- Syzygy 3-4-5 e `SyzygyProbeLimit=5` também são premissas conservadoras; confirmar com a organização antes de usar.
+- O requisito antigo de 15+10 foi supersedido: o PDF atual indica 25 minutos por lado, sem definir incremento; `1500+0` é provisório.
 - Log `.log` por lance, com flush a cada linha, em `logs/<data>_<adversario>_g<n>.log` (FAQ item 9, spec 5.4).
 - Lances do operador em UCI; tabuleiro físico é a verdade (`undo`, `fen`) (FAQ item 10).
 - Dependências Python declaradas em `requirements.txt` com versões fixadas. Esta sprint não adiciona nenhuma.
 - `assets/`, `logs/`, `bin/` fora do git; checksums dos assets em `assets/MANIFEST`.
 - `MoveOverhead` inicial: 1500 ms. `Threads` = núcleos lógicos − 1. `Hash` = 50% da RAM livre, limitado a 16 GB.
-- Fora desta sprint (S3): ponder/`ponderhit` e auto-restart do engine. Na S1, se o engine cair, o controller salva o estado e sai com código 2 para `start --resume`.
+- Fora desta sprint (S3): ponder/`ponderhit` e auto-restart do engine. Se o engine cair, o evento considera a partida perdida; `start --resume` apenas reconcilia o estado para diagnóstico, não permite continuar a partida.
 
 ## Review Focus
 
@@ -1265,7 +1272,7 @@ from pathlib import Path
 
 MOVE_OVERHEAD_MS = 1500
 HASH_CAP_MB = 16 * 1024
-SYZYGY_PROBE_LIMIT = 5  # FAQ item 4: no máximo 5 peças
+SYZYGY_PROBE_LIMIT = 5  # Premissa conservadora; confirmar autorização/limite com a organização.
 
 
 def free_memory_mb() -> int:

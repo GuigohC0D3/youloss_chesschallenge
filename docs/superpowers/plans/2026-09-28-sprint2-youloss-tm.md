@@ -1,8 +1,18 @@
 # Sprint 2 — `youloss_tm` v1 + harness SPRT Implementation Plan
 
+> **Status note (2026-09-30):** This is the original implementation plan, not a
+> record that every task or acceptance gate completed. No accepted SPRT result
+> is present in tracked project records. The actual event profile is
+> provisionally `1500+0`, not the incremented controls used in this draft; see
+> `README.md` and the current local-tournament roadmap. The pinned fastchess
+> `v1.8.2-alpha` summary uses `Ptnml(0-2): [...]`, not the `Penta:` row assumed
+> by the initial checker fixtures. The current checker and tests use the real
+> pinned format. Treat code excerpts below as historical plan material unless
+> independently checked against the current source.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Gestão de tempo autoral (`youloss_tm`) ativa por padrão no engine, com `YoulossTM=false` restaurando o gerenciador original, e um harness de SPRT (fastchess) que prova a não-regressão (elo0=-5, elo1=0).
+**Goal:** Avaliar a gestão de tempo autoral (`youloss_tm`) contra o gerenciador original com um harness de SPRT; a não-regressão (`elo0=-5`, `elo1=0`) é um critério proposto, não um resultado assumido.
 
 **Architecture:** O modelo da seção 4 do spec vive em `engine/src/youloss_tm.{h,cpp}` como **funções puras** (`budget`, `iteration_time`), sem dependências do resto do engine. Um executável de teste C++ próprio cobre essas funções. O Stockfish chama essas funções em dois pontos só: no início da busca, para fixar `optimum`/`maximum`, e no fim de cada iteração, para decidir se para. Ambos ficam protegidos por uma flag. Com `YoulossTM=false`, em `movestogo` ou em `nodestime`, o caminho original fica intacto. O harness roda o mesmo binário contra ele mesmo (`YoulossTM=true` × `false`) com aberturas UHO, e dois scripts Python leem o resultado: o do SPRT e o perfil de uso de tempo.
 
@@ -16,7 +26,7 @@
 - Opção UCI `YoulossTM`, **padrão `true`**; `false` restaura a gestão de tempo original (spec seção 4).
 - Modelo (spec 4): `base = remaining / H(fase) + 0.8 * inc`; `maximum = min(5 * base, 0.25 * remaining)`; reserva de segurança `MoveOverhead` + 1 s abaixo de 10 s; ajustes por iteração: estabilidade da PV, queda de avaliação, lance forçado, lance único claramente melhor, posição decidida.
 - `bench` inalterado: `bin/youloss.exe bench` → `Nodes searched : 2497913`. O bench é limitado por profundidade e não usa gestão de tempo, então qualquer mudança nesse número indica que a busca foi alterada.
-- Aceite (spec 4): SPRT `YoulossTM=true` × `false`, **elo0=-5, elo1=0**, alpha=beta=0.05, 1 thread, TC escalado **60+0.6**.
+- Aceite proposto: SPRT `YoulossTM=true` × `false`, **elo0=-5, elo1=0**, alpha=beta=0.05, 1 thread. Os controles precisam ser sem incremento e representativos; `60+0` é screening escalado, não o controle do evento.
 - Nenhuma mudança na avaliação/NNUE nem na busca do Stockfish (spec 9). Só a decisão de tempo muda.
 - Build sempre por `bash scripts/build_engine.sh` (profile-build, MSYS2 UCRT64).
 - Ponder e tuning SPSA ficam para a S3. Os parâmetros nesta sprint são `constexpr` nomeados, prontos para virar opção UCI.
@@ -33,10 +43,10 @@
 ## Decisões desta sprint (justificadas)
 
 - **"Lance único claramente melhor"**: a v1 usa como indicador o esforço de nós no melhor lance (`rootMoves[0].effort / nodes`), que o Stockfish já mede, em vez de rodar uma busca de verificação extra na raiz. Custa zero nós; a busca de verificação fica como candidata para a S3.
-- **Fallback**: o `youloss_tm` só atua com `wtime/btime` > 0, `movestogo == 0` e `nodestime == 0`. É o formato do evento (15+10), e nos outros casos o original continua valendo.
+- **Fallback**: o `youloss_tm` só atua com `wtime/btime` > 0, `movestogo == 0` e `nodestime == 0`. O evento está planejado provisoriamente como 25 minutos por lado sem incremento; nos outros formatos o original continua valendo.
 - **`Ponder=true`**: o bônus de +25% do original não se aplica ao nosso orçamento na S2. O ponder é da S3.
-- **Gate rápido antes do aceite**: um SPRT a 10+0.1 com os mesmos limites roda antes do de 60+0.6, que é longo. Se o gate aceitar H0 (regressão), o de 60+0.6 não roda e o plano volta para a calibração.
-- **Duração estimada do aceite**: a 60+0.6, uma partida dura cerca de 2,5 min. Com 7 partidas simultâneas (núcleos físicos − 1), são uns 170 jogos/h. Um SPRT [-5, 0] costuma fechar entre 3 e 15 mil jogos, ou seja, **18 a 90 h**. Roda em segundo plano, com a máquina dedicada. Se passar de 48 h sem conclusão, a equipe decide com base no LLR parcial.
+- **Gate rápido proposto**: um screening a 10+0 pode preceder um SPRT mais longo a 60+0. O resultado do screening serve para descartar incidentes/regressões óbvias, não para alegar aceitação estatística.
+- **Duração**: as estimativas abaixo neste plano eram projeções para controles incrementados e concorrência alta. Não são medições desta máquina nem orçamento aprovado; recalcular após medir jogos a `10+0`/`25+0` com concorrência 1 no M4.
 
 ## Estrutura de arquivos
 
@@ -680,7 +690,7 @@ from testing.sprt_result import summarize
 from testing.time_profile import mean_total, profile
 
 LOG_H1 = """
-Results of tm vs sf (10+0.1, 1t, 16MB, UHO_Lichess_4852_v1.epd):
+Results of tm vs sf (10+0, 1t, 16MB, UHO_Lichess_4852_v1.epd):
 Elo: 1.25 +/- 3.40, nElo: 2.10 +/- 5.70
 Games: 4000, Wins: 900, Losses: 886, Draws: 2214, Points: 2007.0 (50.18 %)
 LLR: 2.96 (100.5%) (-2.94, 2.94) [-5.00, 0.00]
@@ -929,8 +939,8 @@ Expected: `OK: <N> posições`, com N na casa de dezenas de milhares, e `verify_
 #!/usr/bin/env bash
 # Match do youloss_tm: mesmo binário, YoulossTM=true ("tm") x false ("sf").
 # Uso: bash testing/tm_match.sh <tc> <rounds> [elo0 elo1]
-#   partidas fixas:  bash testing/tm_match.sh 10+0.1 100
-#   SPRT:            bash testing/tm_match.sh 60+0.6 50000 -5 0
+#   partidas fixas:  bash testing/tm_match.sh 10+0 100
+#   SPRT:            bash testing/tm_match.sh 60+0 50000 -5 0
 # Concorrência: CONC (padrão: núcleos físicos - 1). Deixe a máquina ociosa.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -1003,8 +1013,8 @@ git commit -m "test: aberturas UHO e harness de match/SPRT do youloss_tm"
 
 Run (com a máquina ociosa):
 ```bash
-bash testing/tm_match.sh 10+0.1 100
-bash testing/tm_match.sh 60+0.6 20
+bash testing/tm_match.sh 10+0 100
+bash testing/tm_match.sh 60+0 20
 ```
 Expected: 200 e 40 jogos, cada um com a tabela de perfil no final.
 
@@ -1023,8 +1033,8 @@ Para cada TC, seja `r = s/jogo(tm) / s/jogo(sf)`:
 ## Calibração
 | rodada | TC | jogos | s/jogo tm | s/jogo sf | r | flag tm | HorizonOpening/Endgame |
 |---|---|---|---|---|---|---|---|
-| 1 | 10+0.1 | 200 | … | … | … | … | 45 / 25 |
-| 1 | 60+0.6 | 40 | … | … | … | … | 45 / 25 |
+| 1 | 10+0 | 200 | … | … | … | … | 45 / 25 |
+| 1 | 60+0 | 40 | … | … | … | … | 45 / 25 |
 
 ## SPRTs
 | TC | limites | jogos | LLR | Elo | resultado | log |
@@ -1049,16 +1059,16 @@ git commit -m "test: calibração do perfil de tempo do youloss_tm"
 
 **Interfaces:**
 - Consumes: `testing/tm_match.sh` (Task 4), binário calibrado (Task 5).
-- Produces: resultado registrado; `H1 aceita` a 60+0.6 é a definição de pronto da S2.
+- Produces: resultado registrado; `H1 aceita` a 60+0 é o critério proposto de não-regressão, não um resultado assumido.
 
-- [ ] **Step 1: Gate rápido a 10+0.1**
+- [ ] **Step 1: Gate rápido a 10+0**
 
-Run: `bash testing/tm_match.sh 10+0.1 50000 -5 0; echo "exit=$?"`
+Run: `bash testing/tm_match.sh 10+0 50000 -5 0; echo "exit=$?"`
 Expected: `SPRT H1 aceita` (exit 0). Estimativa: 1 a 4 h. Se der **H0** (exit 1), não rodar o Step 2. Registrar na tabela, voltar à Task 5 para mais uma rodada de ajuste (conta no limite de 2) e, se ainda falhar, parar e escalar para a equipe com o perfil de tempo em mãos.
 
-- [ ] **Step 2: Aceite a 60+0.6 (longo, em segundo plano)**
+- [ ] **Step 2: Aceite a 60+0 (longo, em segundo plano)**
 
-Run: `bash testing/tm_match.sh 60+0.6 50000 -5 0; echo "exit=$?"` (em segundo plano; checar o `.log` a cada poucas horas)
+Run: `bash testing/tm_match.sh 60+0 50000 -5 0; echo "exit=$?"` (em segundo plano somente com orçamento deliberado)
 Expected: `SPRT H1 aceita` (exit 0). Estimativa: 18 a 90 h. Se passar de 48 h, registrar o LLR parcial e pedir decisão à equipe.
 
 - [ ] **Step 3: Registrar e commitar**
@@ -1077,7 +1087,7 @@ git commit -m "test: SPRT de não-regressão do youloss_tm"
 - `bash scripts/test_engine_tm.sh` → `OK: youloss_tm`.
 - `$PY -m pytest testing/tests controller/tests -q` verde, com `test_bench_unchanged` confirmando 2497913 nós.
 - `bin/youloss.exe` com `YoulossTM` padrão `true`; `ORIGIN.md` lista as modificações.
-- SPRT `YoulossTM=true` × `false` a **60+0.6**, [-5, 0]: **H1 aceita**, registrado em `docs/sprt/2026-s2-youloss-tm.md`.
+- Não há resultado de SPRT registrado. O smoke real de 2026-09-30 a `10+0` teve somente 2 jogos e serve apenas para validar o caminho integrado; não permite concluir não-regressão nem ganho.
 - `bash testing/smoke.sh` continua passando.
 - Nenhum commit com atribuição de IA.
 - **Pendências herdadas da S1** (não bloqueiam a S2): Syzygy 3-4-5 (rede sem inspeção TLS) e a escolha do book.
