@@ -8,6 +8,7 @@
 #
 # Env: CONC (padrao: 1 no fanless M4 para nao sobrecarregar; sobrescrevivel),
 #      THREADS (padrao: 1), HASH_MB (padrao: 16),
+#      MOVE_OVERHEAD_MS (padrao: 1500, igual ao controlador),
 #      TIME_CAP_S (teto wall-clock em segundos; padrao 1800 / 30 min),
 #      KILL_GRACE_S (graca entre TERM e KILL em segundos; padrao 30),
 #      SRAND (seed reproduzivel das aberturas; padrao: epoch atual, gravado).
@@ -52,6 +53,7 @@ source "$ROOT/scripts/platform.sh"
 CONC="${CONC:-1}"
 THREADS="${THREADS:-1}"
 HASH_MB="${HASH_MB:-16}"
+MOVE_OVERHEAD_MS="${MOVE_OVERHEAD_MS:-1500}"
 TIME_CAP_S="${TIME_CAP_S:-1800}"
 KILL_GRACE_S="${KILL_GRACE_S:-30}"
 SRAND="${SRAND:-}"
@@ -60,6 +62,10 @@ case "$ROUNDS" in ''|*[!0-9]*|0) echo "FAIL: rounds deve ser inteiro positivo" >
 case "$CONC" in ''|*[!0-9]*|0) echo "FAIL: CONC deve ser inteiro positivo" >&2; exit 2 ;; esac
 case "$THREADS" in ''|*[!0-9]*|0) echo "FAIL: THREADS deve ser inteiro positivo" >&2; exit 2 ;; esac
 case "$HASH_MB" in ''|*[!0-9]*|0) echo "FAIL: HASH_MB deve ser inteiro positivo" >&2; exit 2 ;; esac
+case "$MOVE_OVERHEAD_MS" in ''|*[!0-9]*) echo "FAIL: MOVE_OVERHEAD_MS deve ser inteiro entre 0 e 5000" >&2; exit 2 ;; esac
+[ "${#MOVE_OVERHEAD_MS}" -le 4 ] && [ "$MOVE_OVERHEAD_MS" -le 5000 ] || {
+  echo "FAIL: MOVE_OVERHEAD_MS deve estar entre 0 e 5000" >&2; exit 2;
+}
 case "$TIME_CAP_S" in ''|*[!0-9]*|0) echo "FAIL: TIME_CAP_S deve ser inteiro positivo" >&2; exit 2 ;; esac
 case "$KILL_GRACE_S" in ''|*[!0-9]*|0) echo "FAIL: KILL_GRACE_S deve ser inteiro positivo" >&2; exit 2 ;; esac
 
@@ -112,7 +118,7 @@ TIMEOUT_F="$RUNDIR/.timeout"
 FC_ARGS=(
   -engine "cmd=$ENGINE" name=tm option.YoulossTM=true
   -engine "cmd=$ENGINE" name=sf option.YoulossTM=false
-  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB"
+  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB" "option.Move Overhead=$MOVE_OVERHEAD_MS"
   -openings "file=$BOOK" format=epd order=random
   -srand "$SRAND"
   -rounds "$ROUNDS" -games "$GAMES_PER_ROUND" -concurrency "$CONC"
@@ -122,7 +128,7 @@ SPRT_ARGS=()
 [ "$SPRT" = 0 ] || SPRT_ARGS=(-sprt "elo0=$ELO0" "elo1=$ELO1" alpha=0.05 beta=0.05)
 
 echo "== match $NAME"
-echo "tc=$TC rounds=$ROUNDS games_per_round=$GAMES_PER_ROUND conc=$CONC threads=$THREADS hash_mb=$HASH_MB"
+echo "tc=$TC rounds=$ROUNDS games_per_round=$GAMES_PER_ROUND conc=$CONC threads=$THREADS hash_mb=$HASH_MB move_overhead_ms=$MOVE_OVERHEAD_MS"
 echo "seed=$SRAND book_sha256=$BOOK_SHA"
 echo "runner=$FASTCHESS_TAG commit=$FASTCHESS_COMMIT sha256=$FASTCHESS_SHA time_cap_s=$TIME_CAP_S (sidecar verificado: $SIDECAR)"
 [ "$SPRT" = 0 ] || echo "sprt=[$ELO0, $ELO1] alpha=0.05 beta=0.05"
@@ -242,6 +248,7 @@ COMPLETED_JSON="${COMPLETED:-null}"
   printf '  "concurrency": %s,\n' "$CONC"
   printf '  "threads": %s,\n' "$THREADS"
   printf '  "hash_mb": %s,\n' "$HASH_MB"
+  printf '  "move_overhead_ms": %s,\n' "$MOVE_OVERHEAD_MS"
   printf '  "time_cap_s": %s,\n' "$TIME_CAP_S"
   printf '  "kill_grace_s": %s,\n' "$KILL_GRACE_S"
   printf '  "timeout": %s,\n' "$TIMEOUT"
@@ -257,7 +264,7 @@ COMPLETED_JSON="${COMPLETED:-null}"
   printf '  "runner_sha256_verified": "%s",\n' "$SIDECAR_SHA"
   printf '  "engine": "%s",\n' "$ENGINE"
   printf '  "engine_sha256": "%s",\n' "$ENGINE_SHA"
-  printf '  "engine_options": "tm: YoulossTM=true; sf: YoulossTM=false; each: Threads=%s Hash=%s",\n' "$THREADS" "$HASH_MB"
+  printf '  "engine_options": "tm: YoulossTM=true; sf: YoulossTM=false; each: Threads=%s Hash=%s Move Overhead=%sms",\n' "$THREADS" "$HASH_MB" "$MOVE_OVERHEAD_MS"
   printf '  "sprt": %s,\n' "$SPRT"
   printf '  "sprt_elo0": "%s",\n' "$ELO0"
   printf '  "sprt_elo1": "%s",\n' "$ELO1"

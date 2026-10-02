@@ -46,7 +46,7 @@
 - **Fallback**: o `youloss_tm` só atua com `wtime/btime` > 0, `movestogo == 0` e `nodestime == 0`. O evento está planejado provisoriamente como 25 minutos por lado sem incremento; nos outros formatos o original continua valendo.
 - **`Ponder=true`**: o bônus de +25% do original não se aplica ao nosso orçamento na S2. O ponder é da S3.
 - **Gate rápido proposto**: um screening a 10+0 pode preceder um SPRT mais longo a 60+0. O resultado do screening serve para descartar incidentes/regressões óbvias, não para alegar aceitação estatística.
-- **Duração**: as estimativas abaixo neste plano eram projeções para controles incrementados e concorrência alta. Não são medições desta máquina nem orçamento aprovado; recalcular após medir jogos a `10+0`/`25+0` com concorrência 1 no M4.
+- **Duração**: as estimativas abaixo neste plano eram projeções para controles incrementados e concorrência alta. Não são medições desta máquina nem orçamento aprovado; recalcular após medir screening a `10+0` e, se confirmado pela organização, partidas a `1500+0` com concorrência 1 no M4. `25+0` no fastchess significa 25 segundos por lado.
 
 ## Estrutura de arquivos
 

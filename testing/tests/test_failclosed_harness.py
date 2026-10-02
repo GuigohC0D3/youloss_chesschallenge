@@ -342,9 +342,14 @@ def test_tm_match_failclosed_constraints():
     assert 'CONC="${CONC:-1}"' in text
     assert 'THREADS="${THREADS:-1}"' in text
     assert 'HASH_MB="${HASH_MB:-16}"' in text
+    assert 'MOVE_OVERHEAD_MS="${MOVE_OVERHEAD_MS:-1500}"' in text
     assert 'TIME_CAP_S="${TIME_CAP_S:-1800}"' in text
-    assert '"option.Threads=$THREADS" "option.Hash=$HASH_MB"' in text
+    assert (
+        '"option.Threads=$THREADS" "option.Hash=$HASH_MB" '
+        '"option.Move Overhead=$MOVE_OVERHEAD_MS"'
+    ) in text
     assert '"threads": %s' in text and '"hash_mb": %s' in text
+    assert '"move_overhead_ms": %s' in text
 
 
 def test_build_fastchess_pin_matches_tm_match():
@@ -433,6 +438,7 @@ def _make_fake_root(tmp_path: Path) -> Path:
     fc = fake / "tools" / "fastchess"
     fc.write_text(
         "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$@\" > \"$FAKE_FASTCHESS_ARGS\"\n"
         "echo 'FAKE-STDOUT-MARKER'\n"
         "echo 'FAKE-STDERR-MARKER' >&2\n"
         "exit 1\n",
@@ -466,6 +472,7 @@ def _run_fake_tm(fake: Path) -> subprocess.CompletedProcess[str]:
         CONC="1",
         TIME_CAP_S="15",
         SRAND="12345",
+        FAKE_FASTCHESS_ARGS=str(fake / "fastchess-args.txt"),
     )
     return subprocess.run(
         ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
@@ -530,6 +537,10 @@ def test_tm_match_synthetic_nonzero_runner_fails_closed(tmp_path):
     assert meta["runner_sha256_verified"] == meta["runner_sha256"]
     assert meta["rundir"] == str(rundir)
     assert meta["name"] == rundir.name
+    assert meta["move_overhead_ms"] == 1500
+    assert "option.Move Overhead=1500" in (
+        fake / "fastchess-args.txt"
+    ).read_text().splitlines()
     # Same-parameter second run must land in a distinct directory (no overwrite).
     start2 = time.monotonic()
     r2 = _run_fake_tm(fake)

@@ -92,8 +92,8 @@ número de lances legais, estado de ponder.
 cores, com o mesmo binário, opções, book e hardware. Os limites SPRT `[-5, 0]`
 (não-regressão) e `[0, 5]` (ganho) são alvos de estudo, não resultados obtidos.
 Usar controles sem incremento para refletir a interpretação provisória do evento
-(`10+0` apenas para screening e `25+0` para validação final, se a organização
-confirmar 25 minutos sem incremento). A smoke atual de dois jogos a `10+0` só
+(`10+0` apenas para screening e `1500+0` para qualificação no controle do evento,
+se a organização confirmar zero incremento). A smoke atual de dois jogos a `10+0` só
 verifica a integração; não sustenta inferência de Elo.
 
 ## 5. Controller (CLI do operador)
