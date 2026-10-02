@@ -53,6 +53,14 @@ MIN_USEFUL_SEARCH_MS = 100
 # 1.0s de granularidade de display (segundos truncados) + 1.0s de observação/digitação.
 # Padrão provisório até medição em rehearsal com operadores.
 DEFAULT_CLOCK_LATENCY_S = 2.0
+_EMERGENCY_PIECE_VALUE = {
+    chess.PAWN: 100,
+    chess.KNIGHT: 320,
+    chess.BISHOP: 330,
+    chess.ROOK: 500,
+    chess.QUEEN: 900,
+    chess.KING: 20_000,
+}
 
 
 class _SearchRefused(Exception):
@@ -130,6 +138,11 @@ class Game:
             "help": lambda arg: self.out(HELP),
         }
 
+    @property
+    def begun(self) -> bool:
+        """Whether play is reconciled and the physical game has begun."""
+        return self._begun and not (self._needs_fen or self._needs_clock)
+
     def run(self) -> str | None:
         """Joga até o fim da partida ou `quit`. Retorna o resultado, ou None se interrompida."""
         # Nunca auto-inicia: o relógio físico manda. `begin` (nova) ou
@@ -181,8 +194,12 @@ class Game:
         self, legal: list[chess.Move], ours_ms: int, reserve_ms: int, stop_ms: int
     ) -> None:
         # Reserva/stop não cabem com margem útil mas ainda há tempo:
-        # fallback imediato, claramente rotulado, sem registrar flag.
-        move = chess.Move.from_uci(sorted(m.uci() for m in legal)[0])
+        # escolha determinística sem busca: mate, promoção/captura e peças
+        # atacadas têm prioridade sobre um lance puramente lexical.
+        move = min(
+            legal,
+            key=lambda candidate: (-self._emergency_priority(candidate), candidate.uci()),
+        )
         source = "fallback"
         self._store_proposal(move, source, None)
         self.log.note(
@@ -193,6 +210,42 @@ class Game:
             f"\n>>> PROPOSTA IMEDIATA (fallback-lowtime): {move.uci()}   "
             f"(reserva de operador/relógio não cabe; jogue no físico e confirme com 'played')\n"
         )
+
+    def _emergency_priority(self, move: chess.Move) -> int:
+        """Cheap one-ply move ordering for the no-search low-time path."""
+        board = self.board
+        mover = board.piece_at(move.from_square)
+        if mover is None:
+            return -1_000_000
+        score = 0
+        if board.is_attacked_by(not board.turn, move.from_square):
+            score += _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
+        if move.promotion:
+            score += _EMERGENCY_PIECE_VALUE[move.promotion] - _EMERGENCY_PIECE_VALUE[chess.PAWN]
+        if board.is_capture(move):
+            victim = board.piece_at(move.to_square)
+            captured_value = (
+                _EMERGENCY_PIECE_VALUE[victim.piece_type]
+                if victim is not None
+                else _EMERGENCY_PIECE_VALUE[chess.PAWN]
+            )
+            score += 2 * captured_value - _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
+        if board.is_castling(move):
+            score += 40
+
+        gives_check = board.gives_check(move)
+        board.push(move)
+        try:
+            if gives_check:
+                score += 300
+                if board.is_checkmate():
+                    score += 1_000_000
+            landed = board.piece_at(move.to_square)
+            if landed is not None and board.is_attacked_by(board.turn, move.to_square):
+                score -= 3 * _EMERGENCY_PIECE_VALUE[landed.piece_type] // 4
+        finally:
+            board.pop()
+        return score
 
     def _propose_our_move(self) -> None:
         if self.state.pending_uci is not None:
@@ -404,8 +457,8 @@ class Game:
         self.clock.start(self.board.turn)
         self._begun = True
         self.paused = False
-        self._save()
         self.log.note(f"begin turno={color_name(self.board.turn)}")
+        self._save()
         self.out(
             f"relógio iniciado ({color_name(self.board.turn)} a mover)\n{self._clock_line()}"
         )
@@ -647,10 +700,16 @@ class Game:
             self._finish_flag(0, source="press")
             return
         self._save()
-        self.out(
-            f"partida interrompida; estado em {self.state_path}. "
-            "Retome com: python -m controller.main start --resume"
-        )
+        if self.begun and not self.state.finished:
+            self.out(
+                "partida interrompida após começar; as regras estipulam derrota por falha "
+                "de software. Não retome; informe o árbitro."
+            )
+        else:
+            self.out(
+                f"partida interrompida antes de começar; estado em {self.state_path}. "
+                "Pode reabrir com --resume para diagnóstico."
+            )
         self.running = False
 
     def _cmd_undo(self, arg: str) -> None:

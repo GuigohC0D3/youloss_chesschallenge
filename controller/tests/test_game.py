@@ -39,6 +39,36 @@ def test_bad_input_reprompts_without_advancing(tmp_path, games):
     assert "entrada inválida" in text
 
 
+def test_lowtime_fallback_prefers_valuable_legal_capture(tmp_path, games):
+    game, _ = games(
+        tmp_path,
+        [],
+        fen="7k/8/8/3q4/8/8/8/K2R4 w - - 0 1",
+    )
+    legal = list(game.board.legal_moves)
+    game._propose_fallback_lowtime(legal, ours_ms=50, reserve_ms=2000, stop_ms=1000)
+    assert game.state.pending_uci == "d1d5"
+    assert game.state.moves == []  # fallback is still only a proposal
+
+
+def test_lowtime_fallback_takes_immediate_checkmate(tmp_path, games):
+    game, _ = games(
+        tmp_path,
+        [],
+        fen="7k/8/5KQ1/8/8/8/8/8 w - - 0 1",
+    )
+    game._propose_fallback_lowtime(
+        list(game.board.legal_moves), ours_ms=50, reserve_ms=2000, stop_ms=1000
+    )
+    assert game.state.pending_uci == "g6g7"
+    assert game.state.moves == []
+
+
+def test_resume_is_not_marked_as_started_before_reconciliation(tmp_path, games):
+    game, _ = games(tmp_path, [], resumed=True)
+    assert not game.begun
+
+
 def test_promotion_without_piece_gets_hint(tmp_path, games):
     game, out = games(
         tmp_path,

@@ -139,7 +139,7 @@ def test_press_positive_reading_with_zero_margin_triggers_fallback_not_flag(
     text = "\n".join(out)
     assert "fallback imediato ativado (sem flag)" in text
     assert game.state.result is None  # não declarou flag
-    assert game.state.moves == ["a2a3", "e7e5", "a1a2"]
+    assert game.state.moves == ["a2a3", "e7e5", "a3a4"]
     log = (tmp_path / "g.log").read_text(encoding="utf-8")
     assert "floor 1s: leitura física positiva, fallback sem flag prematuro" in log
 
@@ -198,7 +198,7 @@ def test_positive_reading_tiny_conservative_margin_emits_fallback_not_flag(
     assert game.run() is None
     assert sync == [(None, True, None, True)]
     assert game.state.result is None  # Não houve flag prematuro
-    assert game.state.moves == ["a2a3", "e7e5", "a1a2"]
+    assert game.state.moves == ["a2a3", "e7e5", "a3a4"]
     text = "\n".join(out)
     assert "PROPOSTA IMEDIATA (fallback-lowtime)" in text or "fallback-lowtime" in text
     log = (tmp_path / "g.log").read_text(encoding="utf-8")
@@ -676,7 +676,7 @@ def test_low_margin_expiry_fresh_positive_permits_fallback(tmp_path, games):
     assert sync == [(None, 1, True, None, True)]
     assert len(searches) == 1
     assert game.state.result is None
-    assert game.state.moves == ["a2a3", "e7e5", "a1a2"]
+    assert game.state.moves == ["a2a3", "e7e5", "a3a4"]
     assert game.state.pending_uci is None
     assert any("PROPOSTA IMEDIATA (fallback-lowtime)" in line for line in out)
 

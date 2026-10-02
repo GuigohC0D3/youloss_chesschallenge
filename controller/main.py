@@ -117,11 +117,67 @@ def _resumed_state(args: argparse.Namespace) -> tuple[GameState, Path]:
     if args.resume == "latest":
         state_path = latest_unfinished(args.logs)
         if state_path is None:
+            recent_states = sorted(
+                Path(args.logs).glob("*.state.json"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+            for recent_path in recent_states:
+                try:
+                    recent_state = load_state(recent_path)
+                except StateError:
+                    continue
+                if recent_state.reason == "software-failure":
+                    raise UsageError(
+                        f"última partida encerrada após falha de software "
+                        f"({recent_state.result}); não retome. Informe o árbitro: {recent_path}"
+                    )
+                break
             raise UsageError(f"nenhuma partida em andamento em {args.logs}")
     else:
         state_path = Path(args.resume)
     state = load_state(state_path)
+    if not state.finished:
+        try:
+            log_lines = Path(state.log_path).read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            log_lines = []
+        except OSError as exc:
+            raise StateError(f"não foi possível verificar o log da partida: {exc}") from exc
+        if any(
+            line.startswith("# result=") and line.endswith(" reason=software-failure")
+            for line in log_lines
+        ):
+            raise UsageError(
+                "partida encerrada após falha de software; não retome. Informe o árbitro."
+            )
+        if any(line.startswith("# result=") for line in log_lines):
+            raise UsageError("o log já registra o fim da partida; não retome este estado.")
+        if any(line.startswith("# begin turno=") for line in log_lines):
+            recovery_log: GameLog | None = None
+            try:
+                recovery_log = GameLog(state.log_path)
+            except OSError:
+                pass
+            try:
+                result, persist_errors = _record_software_failure(
+                    state, state_path, recovery_log
+                )
+            finally:
+                if recovery_log is not None:
+                    recovery_log.close()
+            detail = " ".join(persist_errors)
+            raise UsageError(
+                f"o controlador foi reiniciado depois do início da partida; "
+                f"resultado local {result}, derrota por falha de software. Não retome. "
+                f"Informe o árbitro. {detail}"
+            )
     if state.finished:
+        if state.reason == "software-failure":
+            raise UsageError(
+                f"partida encerrada após falha de software ({state.result}); não retome. "
+                "Informe o árbitro."
+            )
         raise UsageError(f"partida já encerrada ({state.result}): {state_path}")
     return state, state_path
 
@@ -141,6 +197,26 @@ def _recovery_hint(state_path: Path) -> str:
             "retome com: python -m controller.main start --resume"
         )
     return "nada foi gravado; corrija o problema e repita o mesmo start"
+
+
+def _record_software_failure(
+    state: GameState, state_path: Path, log: GameLog | None
+) -> tuple[str, list[str]]:
+    """Persist the rules-defined loss and make any surviving state non-resumable."""
+    result = "0-1" if state.color == "white" else "1-0"
+    state.result = result
+    state.reason = "software-failure"
+    errors: list[str] = []
+    if log is not None:
+        try:
+            log.result(result, "software-failure")
+        except OSError as exc:
+            errors.append(f"não foi possível gravar o resultado no log: {exc}")
+    try:
+        save_state(state, state_path)
+    except OSError as exc:
+        errors.append(f"não foi possível gravar o estado encerrado: {exc}")
+    return result, errors
 
 
 def open_engine(engine: EngineClient, options: dict[str, int | str]) -> str:
@@ -181,6 +257,7 @@ def main(
     clock.set(chess.BLACK, state.black_ms)
     log: GameLog | None = None
     engine = engine_factory(args.engine)
+    game: Game | None = None
     try:
         name = open_engine(engine, options)
         if not resumed:
@@ -225,12 +302,39 @@ def main(
                 "ressincronize com 'fen <FEN>' e 'clock <nós mm:ss> <adv mm:ss>' "
                 "(proposta pendente nunca é auto-confirmada)"
             )
-        game.run()
+        game_result = game.run()
+        if game.begun and game_result is None and not state.finished:
+            result, persist_errors = _record_software_failure(state, state_path, log)
+            output_fn(
+                f"controlador encerrado durante a partida: resultado local {result}; "
+                "as regras estipulam derrota. Não retome esta partida; informe o árbitro."
+            )
+            for error in persist_errors:
+                output_fn(f"ERRO DE PERSISTÊNCIA: {error}")
+            return 2
     except (EngineError, OSError) as exc:
         kind = "DO ENGINE" if isinstance(exc, EngineError) else "DE E/S"
+        if game is not None and game.begun:
+            result, persist_errors = _record_software_failure(state, state_path, log)
+            output_fn(
+                f"FALHA DE SOFTWARE durante a partida: {exc}. As regras estipulam derrota "
+                f"(resultado local {result}); pare e informe o árbitro. Não retome esta partida."
+            )
+            for error in persist_errors:
+                output_fn(f"ERRO DE PERSISTÊNCIA: {error}")
+            return 2
         output_fn(f"ERRO {kind}: {exc}\n{_recovery_hint(state_path)}")
         return 2
     except KeyboardInterrupt:
+        if game is not None and game.begun:
+            result, persist_errors = _record_software_failure(state, state_path, log)
+            output_fn(
+                f"\ninterrupção do controlador durante partida iniciada: resultado local "
+                f"{result}; regras estipulam derrota. Pare e informe o árbitro. Não retome."
+            )
+            for error in persist_errors:
+                output_fn(f"ERRO DE PERSISTÊNCIA: {error}")
+            return 130
         output_fn(f"\ninterrompido; {_recovery_hint(state_path)}")
         return 130
     finally:

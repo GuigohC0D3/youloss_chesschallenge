@@ -3,7 +3,7 @@ import pytest
 
 from controller.game_log import check_log
 from controller.main import main
-from controller.state import latest_unfinished, load_state
+from controller.state import latest_unfinished, load_state, save_state
 from controller.engine_client import EngineClient
 from controller.tests.scripted import REAL, Script, fake_engine
 
@@ -65,26 +65,79 @@ def test_warns_without_book_and_syzygy(tmp_path):
     assert code == 0 and "sem book" in text and "sem tablebases" in text
 
 
-def test_engine_crash_exits_2_then_resume_continues(tmp_path):
+def test_engine_crash_records_forfeit_and_refuses_resume(tmp_path):
     code, text = run(
         ["start", "--color", "white", *base_args(tmp_path)],
         answers=["begin"],
         mode="dieongo",
     )
-    assert code == 2 and "--resume" in text
+    assert code == 2 and "FALHA DE SOFTWARE" in text and "Não retome" in text
+    state_file = next((tmp_path / "logs").glob("*.state.json"))
+    state = load_state(state_file)
+    assert state.finished and state.result == "0-1" and state.reason == "software-failure"
+    log_file = next((tmp_path / "logs").glob("*.log"))
+    assert "# result=0-1 reason=software-failure" in log_file.read_text(encoding="utf-8")
+
     code, text = run(
         ["start", "--resume", *base_args(tmp_path)],
-        answers=[
-            f"fen {chess.STARTING_FEN}",
-            "clock 25:00 25:00 nos",
-            "go",
-            "played",
-        ],
     )
-    assert code == 0
-    assert "FEN:" in text  # tabuleiro mostrado ao retomar
-    state = load_state(latest_unfinished(tmp_path / "logs"))
-    assert state.moves == ["a2a3"]
+    assert code == 2 and "encerrada após falha de software" in text
+
+
+def test_quit_after_game_begins_records_forfeit(tmp_path):
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        answers=["begin", "quit"],
+    )
+    assert code == 2 and "controlador encerrado durante a partida" in text
+    state_file = next((tmp_path / "logs").glob("*.state.json"))
+    state = load_state(state_file)
+    assert state.finished and state.result == "0-1" and state.reason == "software-failure"
+
+
+def test_resume_after_unexpected_exit_marks_started_game_lost(tmp_path):
+    code, _ = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        answers=["begin", "quit"],
+    )
+    assert code == 2
+    state_file = next((tmp_path / "logs").glob("*.state.json"))
+    log_file = next((tmp_path / "logs").glob("*.log"))
+    state = load_state(state_file)
+    state.result = None
+    state.reason = None
+    save_state(state, state_file)
+    log_lines = log_file.read_text(encoding="utf-8").splitlines()
+    log_file.write_text(
+        "\n".join(line for line in log_lines if not line.startswith("# result=")) + "\n",
+        encoding="utf-8",
+    )
+
+    code, text = run(["start", "--resume", *base_args(tmp_path)])
+    assert code == 2 and "controlador foi reiniciado depois do início" in text
+    state = load_state(state_file)
+    assert state.finished and state.reason == "software-failure"
+
+
+def test_software_failure_log_blocks_resume_if_state_write_fails(tmp_path, monkeypatch):
+    import controller.main as main_mod
+
+    real_save = main_mod.save_state
+
+    def fail_terminal_state(state, path):
+        if state.reason == "software-failure":
+            raise OSError("disco cheio")
+        real_save(state, path)
+
+    monkeypatch.setattr(main_mod, "save_state", fail_terminal_state)
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        answers=["begin"],
+        mode="dieongo",
+    )
+    assert code == 2 and "disco cheio" in text
+    code, text = run(["start", "--resume", *base_args(tmp_path)])
+    assert code == 2 and "partida encerrada após falha de software" in text
 
 
 def test_resume_without_games(tmp_path):
@@ -173,15 +226,17 @@ def test_engine_failing_at_start_allows_same_start_again(tmp_path):
     assert log_file.read_text(encoding="utf-8").startswith("# engine=")
 
 
-def test_io_error_mid_game_exits_2_with_resume_hint(tmp_path, monkeypatch):
+def test_io_error_after_game_begins_records_software_failure(tmp_path, monkeypatch):
     import controller.game as game_mod
 
     def locked(state, path):
         raise PermissionError("arquivo em uso")
 
     monkeypatch.setattr(game_mod, "save_state", locked)
-    code, text = run(["start", "--color", "white", *base_args(tmp_path)])
-    assert code == 2 and "arquivo em uso" in text and "--resume" in text
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)], answers=["begin"]
+    )
+    assert code == 2 and "arquivo em uso" in text and "FALHA DE SOFTWARE" in text
 
 
 @pytest.mark.parametrize("bad_val", ["-1", "-0.1", "nan", "inf", "-inf", "61", "100"])
