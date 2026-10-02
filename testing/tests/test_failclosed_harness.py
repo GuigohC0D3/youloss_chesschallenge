@@ -466,10 +466,73 @@ def _make_fake_root(tmp_path: Path) -> Path:
     return fake
 
 
+@pytest.mark.parametrize(
+    ("time_control", "move_overhead_ms"),
+    [("60+0", "1500"), ("10+0.1", "1500")],
+)
+def test_tm_match_rejects_overhead_that_exhausts_scaled_horizon(
+    tmp_path, time_control, move_overhead_ms
+):
+    fake = _make_fake_root(tmp_path)
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), time_control, "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS=move_overhead_ms,
+            SRAND="12345",
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 2
+    assert "exhausts the initial time-management horizon" in result.stderr
+    assert not (fake / "logs" / "sprt").exists()
+
+
+@pytest.mark.parametrize(
+    ("time_control", "move_overhead_ms"),
+    [("60+0", "60"), ("1500+0", "1500")],
+)
+def test_tm_match_allows_calibrated_overhead_horizons(
+    tmp_path, time_control, move_overhead_ms
+):
+    fake = _make_fake_root(tmp_path)
+    args_file = fake / "fastchess-args.txt"
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), time_control, "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS=move_overhead_ms,
+            SRAND="12345",
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    # The stub intentionally exits nonzero after printing; reaching it proves
+    # the calibrated control passed preflight and match setup.
+    assert result.returncode != 0
+    assert "FAKE-STDOUT-MARKER" in result.stdout
+    assert f"option.Move Overhead={move_overhead_ms}" in args_file.read_text()
+    rundirs = list((fake / "logs" / "sprt").glob("tm_*"))
+    assert len(rundirs) == 1
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    assert meta["move_overhead_ms"] == int(move_overhead_ms)
+
+
 def _run_fake_tm(fake: Path) -> subprocess.CompletedProcess[str]:
     env = dict(
         os.environ,
         CONC="1",
+        MOVE_OVERHEAD_MS="50",
         TIME_CAP_S="15",
         SRAND="12345",
         FAKE_FASTCHESS_ARGS=str(fake / "fastchess-args.txt"),
@@ -537,8 +600,8 @@ def test_tm_match_synthetic_nonzero_runner_fails_closed(tmp_path):
     assert meta["runner_sha256_verified"] == meta["runner_sha256"]
     assert meta["rundir"] == str(rundir)
     assert meta["name"] == rundir.name
-    assert meta["move_overhead_ms"] == 1500
-    assert "option.Move Overhead=1500" in (
+    assert meta["move_overhead_ms"] == 50
+    assert "option.Move Overhead=50" in (
         fake / "fastchess-args.txt"
     ).read_text().splitlines()
     # Same-parameter second run must land in a distinct directory (no overwrite).
@@ -580,6 +643,7 @@ def _run_fake_timeout_tm(fake: Path) -> subprocess.CompletedProcess[str]:
     env = dict(
         os.environ,
         CONC="1",
+        MOVE_OVERHEAD_MS="50",
         TIME_CAP_S="1",
         KILL_GRACE_S="1",
         SRAND="12345",
@@ -675,6 +739,7 @@ def test_tm_match_timeout_kills_descendant_holding_tee_pipe(tmp_path):
     env = dict(
         os.environ,
         CONC="1",
+        MOVE_OVERHEAD_MS="50",
         TIME_CAP_S="1",
         KILL_GRACE_S="1",
         SRAND="12345",

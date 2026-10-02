@@ -3,8 +3,8 @@
 # youloss_tm ("tm", YoulossTM=true) vs baseline ("sf", YoulossTM=false).
 #
 # Uso: bash testing/tm_match.sh <tc> <rounds> [elo0 elo1]
-#   partidas fixas:  bash testing/tm_match.sh 10+0 100
-#   SPRT:            bash testing/tm_match.sh 60+0 50000 -5 0
+#   partidas fixas:  MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 10+0 100
+#   SPRT:            MOVE_OVERHEAD_MS=60 bash testing/tm_match.sh 60+0 50000 -5 0
 #
 # Env: CONC (padrao: 1 no fanless M4 para nao sobrecarregar; sobrescrevivel),
 #      THREADS (padrao: 1), HASH_MB (padrao: 16),
@@ -12,6 +12,8 @@
 #      TIME_CAP_S (teto wall-clock em segundos; padrao 1800 / 30 min),
 #      KILL_GRACE_S (graca entre TERM e KILL em segundos; padrao 30),
 #      SRAND (seed reproduzivel das aberturas; padrao: epoch atual, gravado).
+# Para controles escalados, calibre MOVE_OVERHEAD_MS; o preflight rejeita valores
+# que esgotam o horizonte inicial do time manager.
 # Deixe a maquina ociosa. Smoke runs devem ser curtos e registrados; confrontos
 # longos/SPRT exigem orçamento de tempo deliberado e não devem rodar em paralelo
 # com outras cargas que afetem a medição.
@@ -68,6 +70,41 @@ case "$MOVE_OVERHEAD_MS" in ''|*[!0-9]*) echo "FAIL: MOVE_OVERHEAD_MS deve ser i
 }
 case "$TIME_CAP_S" in ''|*[!0-9]*|0) echo "FAIL: TIME_CAP_S deve ser inteiro positivo" >&2; exit 2 ;; esac
 case "$KILL_GRACE_S" in ''|*[!0-9]*|0) echo "FAIL: KILL_GRACE_S deve ser inteiro positivo" >&2; exit 2 ;; esac
+
+# For simple sudden-death controls, reject Move Overhead values that consume
+# the initial Stockfish time-management horizon. With no moves-to-go, Stockfish
+# uses a 50-move horizon (reduced below one second) and computes
+# timeLeft = base + increment * (mtg - 1) - overhead * (2 + mtg).
+# This is a preflight check, not proof that two time controls are equivalent.
+if ! "$PY" - "$TC" "$MOVE_OVERHEAD_MS" <<'PY'
+from decimal import Decimal
+import re
+import sys
+
+control, overhead_text = sys.argv[1:]
+match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)\+([0-9]+(?:\.[0-9]+)?)", control)
+if match is None:
+    raise SystemExit(0)
+
+base_ms = int(Decimal(match.group(1)) * 1000)
+increment_ms = int(Decimal(match.group(2)) * 1000)
+move_overhead_ms = int(overhead_text)
+mtg = 50 if base_ms >= 1000 else (base_ms * 5) // 100
+initial_budget_ms = base_ms + increment_ms * (mtg - 1)
+overhead_reserve_ms = move_overhead_ms * (2 + mtg)
+if overhead_reserve_ms >= initial_budget_ms:
+    print(
+        "FAIL: Move Overhead exhausts the initial time-management horizon "
+        f"for {control}: {overhead_reserve_ms}ms reserved vs "
+        f"{initial_budget_ms}ms available (mtg={mtg}). Calibrate overhead "
+        "for scaled controls; 1500ms is intended for the provisional 1500+0 control.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+PY
+then
+  exit 2
+fi
 
 # Runner pin: deve ser identico ao scripts/build_fastchess.sh.
 # CAVEAT de politica de versao: este pin e ALPHA (v1.8.2-alpha); se a

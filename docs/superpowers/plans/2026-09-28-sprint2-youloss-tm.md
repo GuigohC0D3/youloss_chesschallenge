@@ -939,8 +939,8 @@ Expected: `OK: <N> posições`, com N na casa de dezenas de milhares, e `verify_
 #!/usr/bin/env bash
 # Match do youloss_tm: mesmo binário, YoulossTM=true ("tm") x false ("sf").
 # Uso: bash testing/tm_match.sh <tc> <rounds> [elo0 elo1]
-#   partidas fixas:  bash testing/tm_match.sh 10+0 100
-#   SPRT:            bash testing/tm_match.sh 60+0 50000 -5 0
+#   partidas fixas:  MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 10+0 100
+#   SPRT:            MOVE_OVERHEAD_MS=60 bash testing/tm_match.sh 60+0 50000 -5 0
 # Concorrência: CONC (padrão: núcleos físicos - 1). Deixe a máquina ociosa.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -985,8 +985,8 @@ fi
 
 Run:
 ```bash
-CONC=4 bash testing/tm_match.sh 2+0.02 4
-CONC=4 bash testing/tm_match.sh 2+0.02 400 -300 300; echo "exit=$?"
+CONC=4 MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 2+0.02 4
+CONC=4 MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 2+0.02 400 -300 300; echo "exit=$?"
 ```
 Expected: o primeiro termina com 8 jogos e a tabela de perfil mostra `tm` e `sf`, com `jogos` = 8 e tempos > 0. O segundo conclui cedo, porque os limites [-300, 300] são largos, e imprime `SPRT H0 aceita`, `SPRT H1 aceita` ou `inconclusivo`, com `games=` e `llr=` preenchidos. **Se** a tabela vier zerada ou o resumo vier com `?`, o formato real do fastchess é diferente do que os testes assumem. Nesse caso, copiar um trecho real do `.log`/`.pgn` para os testes da Task 3, ajustar as regex (primeiro RED, depois GREEN) e registrar um `Ruling:`.
 
@@ -1013,8 +1013,8 @@ git commit -m "test: aberturas UHO e harness de match/SPRT do youloss_tm"
 
 Run (com a máquina ociosa):
 ```bash
-bash testing/tm_match.sh 10+0 100
-bash testing/tm_match.sh 60+0 20
+MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 10+0 100
+MOVE_OVERHEAD_MS=60 bash testing/tm_match.sh 60+0 20
 ```
 Expected: 200 e 40 jogos, cada um com a tabela de perfil no final.
 
@@ -1063,12 +1063,12 @@ git commit -m "test: calibração do perfil de tempo do youloss_tm"
 
 - [ ] **Step 1: Gate rápido a 10+0**
 
-Run: `bash testing/tm_match.sh 10+0 50000 -5 0; echo "exit=$?"`
+Run: `MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 10+0 50000 -5 0; echo "exit=$?"`
 Expected: `SPRT H1 aceita` (exit 0). Estimativa: 1 a 4 h. Se der **H0** (exit 1), não rodar o Step 2. Registrar na tabela, voltar à Task 5 para mais uma rodada de ajuste (conta no limite de 2) e, se ainda falhar, parar e escalar para a equipe com o perfil de tempo em mãos.
 
 - [ ] **Step 2: Aceite a 60+0 (longo, em segundo plano)**
 
-Run: `bash testing/tm_match.sh 60+0 50000 -5 0; echo "exit=$?"` (em segundo plano somente com orçamento deliberado)
+Run: `MOVE_OVERHEAD_MS=60 bash testing/tm_match.sh 60+0 50000 -5 0; echo "exit=$?"` (em segundo plano somente com orçamento deliberado)
 Expected: `SPRT H1 aceita` (exit 0). Estimativa: 18 a 90 h. Se passar de 48 h, registrar o LLR parcial e pedir decisão à equipe.
 
 - [ ] **Step 3: Registrar e commitar**
