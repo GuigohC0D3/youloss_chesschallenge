@@ -1,0 +1,14 @@
+Indexing opening suite...
+Started game 1 of 2 (tm vs sf)
+Finished game 1 (tm vs sf): 0-1 {Black mates}
+Started game 2 of 2 (sf vs tm)
+Finished game 2 (sf vs tm): 1/2-1/2 {Draw by 3-fold repetition}
+--------------------------------------------------
+Results of tm vs sf (1500, 4t, 512MB, UHO_Lichess_4852_v1.epd):
+Elo: -190.85 +/- 0.00, nElo: -inf +/- nan
+LOS: 0.00 %, DrawRatio: 0.00 %, PairsRatio: 0.00
+Games: 2, Wins: 0, Losses: 1, Draws: 1, Points: 0.5 (25.00 %)
+Ptnml(0-2): [0, 1, 0, 0, 0], WL/DD Ratio: nan
+--------------------------------------------------
+Finished match
+Total Time: 01:26:24 (hours:minutes:seconds)

@@ -85,6 +85,13 @@ The official PDF also contradicts itself about the number of qualifying rounds a
 - The full suite from that clone passed **219 tests, 1 skipped in 40.96s**. It used the existing Python 3.12 virtualenv while running tests from the clone; the skip is the optional Syzygy integration because no tablebases are installed. The clone and build evidence remain under `/tmp/youloss-qual.kW9Ygn` on this machine.
 - The clean-clone build ran on battery (46% at build completion); no sustained thermal/profile run was performed. Physical-clock rehearsal and organizer response remain open, and no message was sent.
 
+## 2026-10-02 full-control simulation follow-up
+
+- A paired-color engine-only `1500+0` simulation completed from the clean-clone PGO binary built at `c522854` (SHA-256 `befaea7fa522ac45cdad1827eb81220e19e46731c04d992096b0603f137882ab`). Settings: one game pair, 4 threads, 512 MiB hash, 1500 ms move overhead for both engines, seed `2026100199`; fastchess v1.8.2-alpha commit `f618e34540f94f4719ad3817950618dabe441318`; UHO opening SHA-256 `7a7f6470615a69c6cf23d565417701d38732876f480af90d67b42abade35644a`.
+- Both games completed in 1:26:24: YoulossTM scored 0 wins, 1 loss, 1 draw (25%). The first game ended by mate; the reverse-color game ended by threefold repetition. There were zero flags and timeouts; fastchess, result checker, and timing-profile checks all exited 0.
+- This two-game sample is not strength evidence. The run started on battery and continued on AC after the user plugged in; it is not sustained AC thermal/profile qualification. It did not exercise the controller, physical board, or clock. `1500+0` remains provisional until the organizer confirms the increment.
+- Preserved run artifacts: [config.json](docs/evidence/full-control-1500-0-20261001-235457/config.json), [match.log](docs/evidence/full-control-1500-0-20261001-235457/match.log), [match.pgn](docs/evidence/full-control-1500-0-20261001-235457/match.pgn), and [meta.json](docs/evidence/full-control-1500-0-20261001-235457/meta.json).
+
 ## Remaining work, in priority order
 
 1. Request organizer clarification of: clock increment and exact hands-on protocol; local book/tablebase/ponder policy; illegal-move and draw handling; qualifying-round count, knockout bracket, and venue; whether the documented YoulossTM algorithm meets the significant-modification criterion; and the exact Git submission/validation procedure. The PDF already confirms Nov 4 email submission to `icev@somosicev.com`, 25 minutes per player, and losses on flag or software failure. No message has been sent.
