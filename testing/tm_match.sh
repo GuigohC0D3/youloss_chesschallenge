@@ -71,36 +71,82 @@ case "$MOVE_OVERHEAD_MS" in ''|*[!0-9]*) echo "FAIL: MOVE_OVERHEAD_MS deve ser i
 case "$TIME_CAP_S" in ''|*[!0-9]*|0) echo "FAIL: TIME_CAP_S deve ser inteiro positivo" >&2; exit 2 ;; esac
 case "$KILL_GRACE_S" in ''|*[!0-9]*|0) echo "FAIL: KILL_GRACE_S deve ser inteiro positivo" >&2; exit 2 ;; esac
 
-# For simple sudden-death controls, reject Move Overhead values that consume
-# the initial Stockfish time-management horizon. With no moves-to-go, Stockfish
-# uses a 50-move horizon (reduced below one second) and computes
-# timeLeft = base + increment * (mtg - 1) - overhead * (2 + mtg).
-# This is a preflight check, not proof that two time controls are equivalent.
-if ! "$PY" - "$TC" "$MOVE_OVERHEAD_MS" <<'PY'
+# Time-control and overhead preflight (fail-closed):
+# 1. Rejects unsupported or malformed time controls (requires base+increment format).
+# 2. Rejects Move Overhead * (2+mtg) exceeding 10% of Stockfish's initial budget.
+#    (10% is a conservative experiment policy, not a fairness proof).
+# 3. For zero-increment fixed runs, verifies TIME_CAP_S covers maximum clock time
+#    (rounds * 2 games * 2 sides * base seconds) plus modest process buffer (30s).
+#    SPRT and incremented controls are not rejected without a justified bound.
+# Overhead calibration note:
+# In engine-only tests (fastchess), MOVE_OVERHEAD_MS models OS scheduling and UCI pipe
+# latency only. Unlike physical tournament operation with human operators reading clocks,
+# typing moves, and pressing physical buttons (where latency is on the order of seconds),
+# engine-only tests require calibrated overhead (e.g. 10-60 ms) to avoid artificial search
+# horizon starvation. No physical simulation is performed here.
+if ! "$PY" - "$TC" "$MOVE_OVERHEAD_MS" "$TIME_CAP_S" "$ROUNDS" "$ELO0" <<'PY'
 from decimal import Decimal
+import math
 import re
 import sys
 
-control, overhead_text = sys.argv[1:]
+control, overhead_text, time_cap_text, rounds_text, elo0_text = sys.argv[1:6]
 match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)\+([0-9]+(?:\.[0-9]+)?)", control)
 if match is None:
-    raise SystemExit(0)
-
-base_ms = int(Decimal(match.group(1)) * 1000)
-increment_ms = int(Decimal(match.group(2)) * 1000)
-move_overhead_ms = int(overhead_text)
-mtg = 50 if base_ms >= 1000 else (base_ms * 5) // 100
-initial_budget_ms = base_ms + increment_ms * (mtg - 1)
-overhead_reserve_ms = move_overhead_ms * (2 + mtg)
-if overhead_reserve_ms >= initial_budget_ms:
     print(
-        "FAIL: Move Overhead exhausts the initial time-management horizon "
-        f"for {control}: {overhead_reserve_ms}ms reserved vs "
-        f"{initial_budget_ms}ms available (mtg={mtg}). Calibrate overhead "
-        "for scaled controls; 1500ms is intended for the provisional 1500+0 control.",
+        f"FAIL: unsupported or malformed time control '{control}' (expected base+inc, e.g. 60+0 or 10+0.1)",
         file=sys.stderr,
     )
     raise SystemExit(1)
+
+base_sec = Decimal(match.group(1))
+inc_sec = Decimal(match.group(2))
+base_ms = int(base_sec * 1000)
+increment_ms = int(inc_sec * 1000)
+move_overhead_ms = int(overhead_text)
+
+mtg = 50 if base_ms >= 1000 else (base_ms * 5) // 100
+initial_budget_ms = base_ms + increment_ms * (mtg - 1)
+
+if initial_budget_ms <= 0:
+    print(
+        f"FAIL: time control '{control}' provides non-positive initial budget ({initial_budget_ms}ms)",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+overhead_reserve_ms = move_overhead_ms * (2 + mtg)
+if overhead_reserve_ms * 10 > initial_budget_ms:
+    max_overhead_ms = initial_budget_ms // (10 * (2 + mtg))
+    print(
+        "FAIL: Move Overhead exceeds the 10% initial-budget policy "
+        f"for {control}: {overhead_reserve_ms}ms reserved vs "
+        f"{initial_budget_ms}ms available (mtg={mtg}). "
+        f"Move Overhead * (2+mtg) exceeds 10% of initial budget (limit={initial_budget_ms // 10}ms). "
+        "State note: 10% is a conservative experiment policy, not a fairness proof. "
+        f"Calibrate overhead for scaled controls (<= {max_overhead_ms}ms); "
+        "1500ms is intended for the provisional 1500+0 control.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+is_sprt = bool(elo0_text.strip())
+if increment_ms == 0 and not is_sprt:
+    rounds = int(rounds_text)
+    time_cap_s = int(time_cap_text)
+    # rounds * 2 games * 2 sides * base seconds
+    max_clock_s = int(math.ceil(Decimal(rounds) * 4 * base_sec))
+    process_buffer_s = 30
+    required_cap_s = max_clock_s + process_buffer_s
+    if time_cap_s < required_cap_s:
+        print(
+            f"FAIL: TIME_CAP_S={time_cap_s}s cannot cover maximum clock time for {rounds} round(s) "
+            f"of {control}: max clock time is {max_clock_s}s ({rounds} rounds * 2 games * 2 sides * {base_sec}s) "
+            f"+ {process_buffer_s}s process buffer = {required_cap_s}s required. "
+            f"Increase TIME_CAP_S to at least {required_cap_s}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 PY
 then
   exit 2

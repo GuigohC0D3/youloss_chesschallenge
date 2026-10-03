@@ -468,9 +468,13 @@ def _make_fake_root(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize(
     ("time_control", "move_overhead_ms"),
-    [("60+0", "1500"), ("10+0.1", "1500")],
+    [
+        ("60+0", "1000"),
+        ("60+0", "1500"),
+        ("10+0.1", "1500"),
+    ],
 )
-def test_tm_match_rejects_overhead_that_exhausts_scaled_horizon(
+def test_tm_match_rejects_overhead_above_scaled_budget_policy(
     tmp_path, time_control, move_overhead_ms
 ):
     fake = _make_fake_root(tmp_path)
@@ -489,7 +493,8 @@ def test_tm_match_rejects_overhead_that_exhausts_scaled_horizon(
     )
 
     assert result.returncode == 2
-    assert "exhausts the initial time-management horizon" in result.stderr
+    assert "exceeds the 10% initial-budget policy" in result.stderr
+    assert "10%" in result.stderr
     assert not (fake / "logs" / "sprt").exists()
 
 
@@ -509,6 +514,7 @@ def test_tm_match_allows_calibrated_overhead_horizons(
             os.environ,
             CONC="1",
             MOVE_OVERHEAD_MS=move_overhead_ms,
+            TIME_CAP_S="7000",
             SRAND="12345",
             FAKE_FASTCHESS_ARGS=str(args_file),
         ),
@@ -528,11 +534,125 @@ def test_tm_match_allows_calibrated_overhead_horizons(
     assert meta["move_overhead_ms"] == int(move_overhead_ms)
 
 
+@pytest.mark.parametrize(
+    "bad_tc",
+    [
+        "60",
+        "60+",
+        "+0",
+        "60+0+0",
+        "invalid",
+        "60+abc",
+        "-10+0",
+        "0+0",
+    ],
+)
+def test_tm_match_rejects_unsupported_or_malformed_time_control(tmp_path, bad_tc):
+    fake = _make_fake_root(tmp_path)
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), bad_tc, "1"],
+        cwd=str(fake),
+        env=dict(os.environ, CONC="1", SRAND="12345"),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 2
+    assert "FAIL:" in result.stderr
+    assert not (fake / "logs" / "sprt").exists()
+
+
+@pytest.mark.parametrize(
+    ("tc", "rounds", "time_cap_s", "should_fail"),
+    [
+        ("60+0", "1", "200", True),
+        ("60+0", "1", "270", False),
+        ("1500+0", "1", "1800", True),
+        ("1500+0", "1", "6030", False),
+    ],
+)
+def test_tm_match_zero_increment_time_cap_preflight(
+    tmp_path, tc, rounds, time_cap_s, should_fail
+):
+    fake = _make_fake_root(tmp_path)
+    args_file = fake / "fastchess-args.txt"
+    overhead = "60" if tc == "60+0" else "1500"
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), tc, rounds],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS=overhead,
+            TIME_CAP_S=time_cap_s,
+            SRAND="12345",
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    if should_fail:
+        assert result.returncode == 2
+        assert "cannot cover maximum clock time" in result.stderr
+        assert not (fake / "logs" / "sprt").exists()
+    else:
+        assert result.returncode != 0
+        assert "cannot cover maximum clock time" not in result.stderr
+        assert "FAKE-STDOUT-MARKER" in result.stdout
+
+
+def test_tm_match_does_not_reject_incremented_or_sprt_cap_without_bound(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    args_file = fake / "fastchess-args.txt"
+    # Incremented control with TIME_CAP_S smaller than 4 * base:
+    # 10+0.1 with TIME_CAP_S=15 (4*10 = 40s > 15s) must not fail cap preflight
+    r1 = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="20",
+            TIME_CAP_S="15",
+            SRAND="12345",
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert "cannot cover maximum clock time" not in r1.stderr
+    assert "FAKE-STDOUT-MARKER" in r1.stdout
+
+    # SPRT run with 60+0, 100 rounds, default TIME_CAP_S=1800 (100*4*60 = 24000s > 1800s)
+    # SPRT terminates on early bound crossing, must not be rejected by zero-increment fixed run preflight
+    r2 = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "60+0", "100", "-5", "0"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="60",
+            TIME_CAP_S="1800",
+            SRAND="12345",
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert "cannot cover maximum clock time" not in r2.stderr
+    assert "FAKE-STDOUT-MARKER" in r2.stdout
+
+
 def _run_fake_tm(fake: Path) -> subprocess.CompletedProcess[str]:
     env = dict(
         os.environ,
         CONC="1",
-        MOVE_OVERHEAD_MS="50",
+        MOVE_OVERHEAD_MS="20",
         TIME_CAP_S="15",
         SRAND="12345",
         FAKE_FASTCHESS_ARGS=str(fake / "fastchess-args.txt"),
@@ -600,8 +720,8 @@ def test_tm_match_synthetic_nonzero_runner_fails_closed(tmp_path):
     assert meta["runner_sha256_verified"] == meta["runner_sha256"]
     assert meta["rundir"] == str(rundir)
     assert meta["name"] == rundir.name
-    assert meta["move_overhead_ms"] == 50
-    assert "option.Move Overhead=50" in (
+    assert meta["move_overhead_ms"] == 20
+    assert "option.Move Overhead=20" in (
         fake / "fastchess-args.txt"
     ).read_text().splitlines()
     # Same-parameter second run must land in a distinct directory (no overwrite).
@@ -643,7 +763,7 @@ def _run_fake_timeout_tm(fake: Path) -> subprocess.CompletedProcess[str]:
     env = dict(
         os.environ,
         CONC="1",
-        MOVE_OVERHEAD_MS="50",
+        MOVE_OVERHEAD_MS="20",
         TIME_CAP_S="1",
         KILL_GRACE_S="1",
         SRAND="12345",
@@ -739,7 +859,7 @@ def test_tm_match_timeout_kills_descendant_holding_tee_pipe(tmp_path):
     env = dict(
         os.environ,
         CONC="1",
-        MOVE_OVERHEAD_MS="50",
+        MOVE_OVERHEAD_MS="20",
         TIME_CAP_S="1",
         KILL_GRACE_S="1",
         SRAND="12345",
