@@ -762,3 +762,233 @@ def test_played_expiry_confirmed_zero_flags(tmp_path, games):
     assert game.state.moves == []
     log = (tmp_path / "g.log").read_text(encoding="utf-8")
     assert "physical flag confirmed" in log
+
+
+def test_emergency_candidate_retained_and_preferred_on_fallback(tmp_path, games):
+    """Engine result is retained as single candidate and preferred on fallback for exact FEN."""
+    fen = "7k/8/8/3q4/8/8/8/K2R4 w - - 0 1"
+    # Tactical ordering alone would prefer d1d5 (Queen capture).
+    # fake_engine picks a1b1 (first legal move; a1a2 is attacked by the queen).
+    game, out = games(
+        tmp_path,
+        [
+            "begin",
+            "undo",  # Discards proposal; position is unchanged (no moves popped).
+            "clock 00:01 24:45 nos",  # Triggers low-margin recovery fallback.
+            "go",  # Undo requires an explicit new proposal after clock sync.
+            "played",
+        ],
+        fen=fen,
+        clock_latency=2.0,
+    )
+    assert game.run() is None
+    # Cached engine move a1b1 preferred over tactical d1d5
+    assert game.state.moves == ["a1b1"]
+    text = "\n".join(out)
+    assert "PROPOSTA IMEDIATA (fallback-lowtime [cached]): a1b1" in text
+    log = (tmp_path / "g.log").read_text(encoding="utf-8")
+    assert "fallback-lowtime candidate=cached source=cached" in log
+    moves = [l for l in log.splitlines() if l.startswith("move=")]
+    assert len(moves) == 1 and all(LINE_RE.match(l) for l in moves)
+    assert "source=fallback" in moves[0]
+
+
+def test_emergency_candidate_not_reused_after_undo_to_different_position(tmp_path, games):
+    """Candidate must not be reused when undo reverts to a different board position."""
+    game, out = games(
+        tmp_path,
+        [
+            "begin",
+            "played",  # Move 1: a2a3 confirmed
+            "press 00:58 00:59",
+            "e7e5",  # Opponent move e7e5
+            "undo",  # Reverts e7e5, returning to position after a2a3 (different FEN)
+            "clock 00:01 24:45 nos",  # Low-margin fallback on reverted position
+            "played",
+        ],
+        clock_latency=2.0,
+    )
+    assert game.run() is None
+    assert game._emergency_candidate is None
+    log = (tmp_path / "g.log").read_text(encoding="utf-8")
+    # Move after undo should use normal fallback, not cached
+    assert "candidate=cached" not in log
+
+
+def test_emergency_candidate_not_reused_after_fen_resync(tmp_path, games):
+    """Candidate must not be reused after resyncing with a different FEN."""
+    fen1 = "7k/8/8/3q4/8/8/8/K2R4 w - - 0 1"
+    fen2 = "7k/8/8/8/8/8/8/K2R4 w - - 0 1"
+    game, _ = games(tmp_path, ["begin"], fen=fen1)
+    game.run()  # Generates proposal and candidate for fen1
+    assert game._emergency_candidate is not None
+    assert game._emergency_candidate[0] == fen1
+
+    game._cmd_fen(fen2)
+    assert game._emergency_candidate is None
+
+
+def test_emergency_candidate_not_reused_across_games(tmp_path, games):
+    """Candidate must not persist across separate Game instances."""
+    game1, _ = games(tmp_path, ["begin"])
+    game1.run()
+    assert game1._emergency_candidate is not None
+
+    game2, _ = games(tmp_path, [])
+    assert game2._emergency_candidate is None
+
+
+def test_deterministic_replay_qualification_delays_and_budget(tmp_path, games):
+    """Replay qualification: simulate clock read, UCI entry, piece move, played press.
+    Assert delays debit the correct side and search budget stays within reported remaining time."""
+    clock_read_s = 1.0
+    uci_entry_s = 1.2
+    piece_move_s = 1.5
+    clock_press_s = 0.8
+    opp_think_s = 3.0
+
+    class FakeMonotonic:
+        def __init__(self) -> None:
+            self.t = 1000.0
+
+        def __call__(self) -> float:
+            return self.t
+
+    vclock = FakeMonotonic()
+    searches: list[dict] = []
+
+    game, out = games(
+        tmp_path,
+        [
+            "begin",
+            "played",
+            "press 00:55 00:54",
+            "e7e5",
+            "played",
+        ],
+        base_ms=60_000,
+        safety=2.0,
+        clock_latency=2.0,
+    )
+    game.clock._now = vclock  # type: ignore[attr-defined]
+
+    real_search = game.engine.search
+
+    def spy_search(position, go, timeout, stop_grace=1.0):
+        fresh_ours = game.clock.remaining(game.us)
+        searches.append({
+            "timeout": timeout,
+            "stop_grace": stop_grace,
+            "safety": game.safety_margin_s,
+            "remaining_s": fresh_ours / 1000.0,
+        })
+        return real_search(position, go, timeout, stop_grace=stop_grace)
+
+    game.engine.search = spy_search
+    orig_input = game.input_fn
+
+    def advancing_input(prompt: str) -> str:
+        cmd = orig_input(prompt)
+        if cmd == "played":
+            vclock.t += piece_move_s
+            vclock.t += clock_press_s
+        elif cmd.startswith("press"):
+            vclock.t += opp_think_s
+            vclock.t += clock_read_s
+        elif cmd == "e7e5":
+            vclock.t += uci_entry_s
+        return cmd
+
+    game.input_fn = advancing_input
+    assert game.run() is None
+
+    # Verify search budget fits remaining reported time
+    assert len(searches) >= 1
+    for s in searches:
+        assert s["timeout"] + s["stop_grace"] + s["safety"] <= s["remaining_s"] + 0.5
+
+    # Verify moves played and clean completion
+    assert game.state.moves == ["a2a3", "e7e5", "a1a2"]
+    assert game.state.result is None
+
+
+def test_deterministic_replay_positive_low_time_recovery_separate(tmp_path, games):
+    """Deterministic replay: positive low-time recovery triggers fallback without flagging."""
+    class FakeMonotonic:
+        def __init__(self) -> None:
+            self.t = 1000.0
+
+        def __call__(self) -> float:
+            return self.t
+
+    vclock = FakeMonotonic()
+    game, out = games(
+        tmp_path,
+        [
+            "begin",
+            "played",
+            "press 00:02 00:50",
+            "e7e5",
+            "clock 00:01 00:50 nos",
+            "played",
+        ],
+        base_ms=60_000,
+        clock_latency=1.995,
+    )
+    game.clock._now = vclock  # type: ignore[attr-defined]
+
+    orig_input = game.input_fn
+
+    def advancing_input(prompt: str) -> str:
+        cmd = orig_input(prompt)
+        if cmd == "e7e5":
+            vclock.t += 0.050  # 50ms delay expires conservative estimate
+        return cmd
+
+    game.input_fn = advancing_input
+    assert game.run() is None
+    assert game.state.result is None
+    assert len(game.state.moves) == 3
+    assert any("fallback-lowtime" in line for line in out)
+    log = (tmp_path / "g.log").read_text(encoding="utf-8")
+    assert "clock-sync-recovery" in log
+    assert "physical flag confirmed" not in log
+
+
+def test_deterministic_replay_confirmed_physical_zero_separate(tmp_path, games):
+    """Deterministic replay: confirmed physical zero stops game with flag."""
+    class FakeMonotonic:
+        def __init__(self) -> None:
+            self.t = 1000.0
+
+        def __call__(self) -> float:
+            return self.t
+
+    vclock = FakeMonotonic()
+    game, out = games(
+        tmp_path,
+        [
+            "begin",
+            "played",
+            "press 00:02 00:50",
+            "e7e5",
+            "clock 00:00 00:50 nos",
+        ],
+        base_ms=60_000,
+        clock_latency=1.995,
+    )
+    game.clock._now = vclock  # type: ignore[attr-defined]
+
+    orig_input = game.input_fn
+
+    def advancing_input(prompt: str) -> str:
+        cmd = orig_input(prompt)
+        if cmd == "e7e5":
+            vclock.t += 0.050  # 50ms delay expires conservative estimate
+        return cmd
+
+    game.input_fn = advancing_input
+    assert game.run() == "0-1"
+    assert game.state.reason == "flag"
+    log = (tmp_path / "g.log").read_text(encoding="utf-8")
+    assert "physical flag confirmed" in log

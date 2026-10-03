@@ -123,6 +123,7 @@ class Game:
         self._opp_spent: int | None = None
         self._physical_read_required = False
         self._physical_flag_pending = False
+        self._emergency_candidate: tuple[str, chess.Move, SearchInfo | None] | None = None
         self._commands: dict[str, Callable[[str], None]] = {
             "quit": self._cmd_quit,
             "undo": self._cmd_undo,
@@ -194,22 +195,46 @@ class Game:
         self, legal: list[chess.Move], ours_ms: int, reserve_ms: int, stop_ms: int
     ) -> None:
         # Reserva/stop não cabem com margem útil mas ainda há tempo:
-        # escolha determinística sem busca: mate, promoção/captura e peças
-        # atacadas têm prioridade sobre um lance puramente lexical.
-        move = min(
-            legal,
-            key=lambda candidate: (-self._emergency_priority(candidate), candidate.uci()),
-        )
-        source = "fallback"
-        self._store_proposal(move, source, None)
-        self.log.note(
-            f"fallback-lowtime restante={ours_ms}ms reserva={reserve_ms}ms "
-            f"stop={stop_ms}ms uci={move.uci()}"
-        )
-        self.out(
-            f"\n>>> PROPOSTA IMEDIATA (fallback-lowtime): {move.uci()}   "
-            f"(reserva de operador/relógio não cabe; jogue no físico e confirme com 'played')\n"
-        )
+        # escolha determinística sem busca.
+        # Se houver candidato de engine validado para a posição exata atual,
+        # prefere esse candidato revalidando a legalidade.
+        cached_move: chess.Move | None = None
+        cached_info: SearchInfo | None = None
+        if self._emergency_candidate is not None:
+            cand_fen, cand_move, cand_info = self._emergency_candidate
+            if cand_fen == self.board.fen() and cand_move in legal:
+                cached_move = cand_move
+                cached_info = cand_info
+            else:
+                self._emergency_candidate = None
+
+        if cached_move is not None:
+            move = cached_move
+            source = "fallback"
+            self._store_proposal(move, source, cached_info)
+            self.log.note(
+                f"fallback-lowtime candidate=cached source=cached restante={ours_ms}ms reserva={reserve_ms}ms "
+                f"stop={stop_ms}ms uci={move.uci()}"
+            )
+            self.out(
+                f"\n>>> PROPOSTA IMEDIATA (fallback-lowtime [cached]): {move.uci()}   "
+                f"(reserva de operador/relógio não cabe; jogue no físico e confirme com 'played')\n"
+            )
+        else:
+            move = min(
+                legal,
+                key=lambda candidate: (-self._emergency_priority(candidate), candidate.uci()),
+            )
+            source = "fallback"
+            self._store_proposal(move, source, None)
+            self.log.note(
+                f"fallback-lowtime restante={ours_ms}ms reserva={reserve_ms}ms "
+                f"stop={stop_ms}ms uci={move.uci()}"
+            )
+            self.out(
+                f"\n>>> PROPOSTA IMEDIATA (fallback-lowtime): {move.uci()}   "
+                f"(reserva de operador/relógio não cabe; jogue no físico e confirme com 'played')\n"
+            )
 
     def _emergency_priority(self, move: chess.Move) -> int:
         """Cheap one-ply move ordering for the no-search low-time path."""
@@ -302,10 +327,13 @@ class Game:
             try:
                 move = chess.Move.from_uci(info.bestmove)
             except ValueError as exc:
+                self._emergency_candidate = None
                 raise EngineError(f"bestmove malformado: {info.bestmove!r}") from exc
             if move not in legal:
+                self._emergency_candidate = None
                 raise EngineError(f"engine devolveu lance ilegal: {info.bestmove}")
             source = "engine"
+            self._emergency_candidate = (self.board.fen(), move, info)
         self._store_proposal(move, source, info)
         self.out(
             f"\n>>> PROPOSTA: {move.uci()}   ({source}) — "
@@ -372,7 +400,11 @@ class Game:
         if self.state.moves:
             position += " moves " + " ".join(self.state.moves)
         go = f"go wtime {wtime} btime {btime} winc {inc} binc {inc}"
-        info = self.engine.search(position, go, timeout, stop_grace=STOP_GRACE_S)
+        try:
+            info = self.engine.search(position, go, timeout, stop_grace=STOP_GRACE_S)
+        except Exception:
+            self._emergency_candidate = None
+            raise
         if info.stopped:
             self.out(f"AVISO: engine passou de {timeout:.1f}s; stop enviado")
         return info
@@ -619,6 +651,7 @@ class Game:
         move_no, color = self.board.fullmove_number, self.board.turn
         spent = self.clock.press()
         self.board.push(move)
+        self._emergency_candidate = None
         self.state.moves.append(move.uci())
         self.state.pending_uci = None
         self.state.pending_source = None
@@ -677,6 +710,7 @@ class Game:
         spent = self._opp_spent if self._opp_spent is not None else 0
         self._opp_spent = None
         self._push(move)
+        self._emergency_candidate = None
         self.paused = False
         # Durabilidade por lance: `move=` antes do commit do estado.
         self.log.opponent_move(move_no, color_name(color), move.uci(), spent)
@@ -735,6 +769,8 @@ class Game:
             self.paused = True
             self._needs_clock = True
             self._low_margin_fallback = False
+            if self._emergency_candidate is not None and self._emergency_candidate[0] != self.board.fen():
+                self._emergency_candidate = None
             self._save()
             self.log.note(f"undo (proposta {discarded_first} descartada)")
             self.show_board()
@@ -753,6 +789,8 @@ class Game:
         self._physical_read_required = False
         self._physical_flag_pending = False
         self.board = self.state.board()
+        if self._emergency_candidate is not None and self._emergency_candidate[0] != self.board.fen():
+            self._emergency_candidate = None
         # Fail closed: para o relógio interno e exige 'clock' novo com
         # seleção explícita (a omissão preserva o parado).
         self.clock.stop()
@@ -796,6 +834,8 @@ class Game:
         self._needs_fen = False
         self._needs_clock = True
         self._low_margin_fallback = False
+        if self._emergency_candidate is not None and self._emergency_candidate[0] != self.board.fen():
+            self._emergency_candidate = None
         self._save()
         if discarded:
             self.log.note(f'fen "{board.fen()}" (proposta {discarded} descartada)')

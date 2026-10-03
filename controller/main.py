@@ -13,7 +13,7 @@ import chess
 
 from controller.book import BookError, OpeningBook
 from controller.clock import ClockFormatError, GameClock, parse_tc
-from controller.engine_client import EngineClient, EngineError
+from controller.engine_client import EngineClient, EngineError, record_incident
 from controller.game import Game
 from controller.game_log import GameLog, log_path
 from controller.runtime import runtime_options
@@ -313,6 +313,34 @@ def main(
                 output_fn(f"ERRO DE PERSISTÊNCIA: {error}")
             return 2
     except (EngineError, OSError) as exc:
+        is_engine_fail = isinstance(exc, EngineError) or isinstance(exc, BrokenPipeError)
+        if is_engine_fail:
+            try:
+                clock_info = (
+                    {
+                        "white_ms": game.clock.remaining(chess.WHITE),
+                        "black_ms": game.clock.remaining(chess.BLACK),
+                    }
+                    if game is not None
+                    else None
+                )
+                fen = game.board.fen() if game is not None else state.start_fen
+                incident_path = Path(state.log_path).with_suffix(".incident.json")
+                incident = record_incident(incident_path, exc, engine, fen, clock_info)
+                if log is not None:
+                    sidecar = incident_path.name if incident is not None else "unavailable"
+                    log.note(
+                        f"incident failure_class={exc.__class__.__name__} "
+                        f"exit={engine.exit_code} sidecar={sidecar}"
+                    )
+            except Exception:
+                # Diagnostics must never interrupt the terminal loss handler.
+                try:
+                    if log is not None:
+                        log.note("incident diagnostics-unavailable")
+                except Exception:
+                    pass
+
         kind = "DO ENGINE" if isinstance(exc, EngineError) else "DE E/S"
         if game is not None and game.begun:
             result, persist_errors = _record_software_failure(state, state_path, log)

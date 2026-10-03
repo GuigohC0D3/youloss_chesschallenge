@@ -33,6 +33,10 @@ for line in sys.stdin:
     cmd = line.strip()
     if mode == "crash":
         sys.exit(3)
+    if mode == "crash_with_stderr":
+        sys.stderr.write("fatal: corrupted hash table\n")
+        sys.stderr.flush()
+        sys.exit(5)
     if mode == "spam" and cmd.startswith("go"):
         while True:
             print("info depth 1 score cp 0 pv e2e4", flush=True)
@@ -40,6 +44,9 @@ for line in sys.stdin:
     if mode == "hang":
         continue
     if cmd == "uci":
+        if mode == "control_chars":
+            sys.stderr.write("\x1b[31merror with ansi\x1b[0m\x00\x07\r\nclean line\n")
+            sys.stderr.flush()
         print("id name FakeFish 1.0")
         print("id author Youloss")
         print("option name Hash type spin default 16 min 1 max 1024")
@@ -51,6 +58,17 @@ for line in sys.stdin:
     elif cmd.startswith("go"):
         if mode == "dieongo":
             sys.exit(4)
+        if mode == "dieongo_with_stderr":
+            sys.stderr.write("critical: assertion failed in search.cpp:42\n")
+            sys.stderr.flush()
+            sys.exit(4)
+        if mode == "stderr_flood":
+            for i in range(2000):
+                sys.stderr.write(f"flood line {i}: " + "x" * 80 + "\n")
+            sys.stderr.flush()
+        if mode == "stderr_giant_no_newline":
+            sys.stderr.write("x" * (1024 * 1024))
+            sys.stderr.flush()
         if mode not in ("slow", "deaf"):
             answer_bestmove()
     elif cmd == "stop" and mode == "slow":

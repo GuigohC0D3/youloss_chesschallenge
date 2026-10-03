@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "color": "white",
+  "opponent": "simulated_opponent",
+  "game": 1,
+  "base_ms": 60000,
+  "inc_ms": 0,
+  "start_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "moves": [
+    "a2a3",
+    "e7e5",
+    "a3a4"
+  ],
+  "white_ms": 700,
+  "black_ms": 56000,
+  "log_path": "docs/evidence/operator-replay-20261003/positive_recovery/replay.log",
+  "result": null,
+  "reason": null,
+  "pending_uci": null,
+  "pending_source": null,
+  "pending_depth": 0,
+  "pending_seldepth": 0,
+  "pending_nodes": 0,
+  "pending_score_cp": null,
+  "pending_score_mate": null,
+  "pending_pv": []
+}

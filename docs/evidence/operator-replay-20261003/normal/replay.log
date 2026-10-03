@@ -1,0 +1,7 @@
+# begin turno=white
+# proposal move=1 color=white uci=a2a3 source=engine
+move=1 color=white uci=a2a3 depth=5 seldepth=7 nodes=1234 eval=+0.12 pv="a2a3" time_ms=2500 source=engine
+# press adv jogou spent_ms=3000 physical_ours=00:58 latency_allowance_ms=2000 conservative_ours_ms=56000 adjusted_estimate_ms=56000
+move=1 color=black uci=e7e5 time_ms=3000 source=opponent
+# proposal move=2 color=white uci=a1a2 source=engine
+move=2 color=white uci=a1a2 depth=5 seldepth=7 nodes=1234 eval=+0.12 pv="a1a2" time_ms=4700 source=engine

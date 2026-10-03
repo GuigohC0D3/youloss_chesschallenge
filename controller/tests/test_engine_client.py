@@ -75,3 +75,68 @@ def test_non_executable_raises_engine_error():
     eng = EngineClient(FAKE)  # .py não é executável no Windows (WinError 193)
     with pytest.raises(EngineError, match="fake_engine.py"):
         eng.start()
+
+
+def test_stderr_flood_does_not_block_search_and_stays_bounded():
+    eng = fake("stderr_flood")
+    eng.stderr_max_lines = 50
+    eng.stderr_max_bytes = 4096
+    with eng:
+        eng.handshake(timeout=5)
+        eng.is_ready(timeout=5)
+        info = eng.search("position startpos", "go wtime 10000 btime 10000", timeout=5)
+        assert info.bestmove != ""
+        tail = eng.stderr_tail()
+        assert len(tail) <= 50
+        assert sum(len(line.encode("utf-8")) for line in tail) <= 4096
+        assert any("flood line" in line for line in tail)
+
+
+def test_giant_stderr_line_without_newline_does_not_block_search():
+    eng = fake("stderr_giant_no_newline")
+    eng.stderr_max_lines = 8
+    eng.stderr_max_bytes = 4096
+    with eng:
+        eng.handshake(timeout=5)
+        info = eng.search("position startpos", "go wtime 10000 btime 10000", timeout=5)
+        assert info.bestmove
+        tail = eng.stderr_tail()
+        assert tail
+        assert len(tail) <= 8
+        assert sum(len(line.encode("utf-8")) for line in tail) <= 4096
+
+
+def test_stderr_sanitizes_control_chars_and_newlines():
+    with fake("control_chars") as eng:
+        eng.handshake(timeout=5)
+        import time
+        time.sleep(0.1)
+        tail = eng.stderr_tail()
+        assert any("error with ansi" in line for line in tail)
+        for line in tail:
+            assert "\x1b" not in line
+            assert "\r" not in line
+            assert "\n" not in line
+            assert "\x07" not in line
+            assert "\x00" not in line
+
+
+def test_crash_and_restart_isolation():
+    eng = fake("crash_with_stderr")
+    with pytest.raises(EngineCrashed):
+        with eng:
+            eng.handshake(timeout=5)
+    assert eng.exit_code == 5
+    crash_tail = eng.stderr_tail()
+    assert any("corrupted hash table" in line for line in crash_tail)
+
+    # Restart with 'ok' mode on same client
+    eng.args = [str(FAKE), "ok"]
+    eng.start()
+    try:
+        assert eng.stderr_tail() == []
+        info = eng.handshake(timeout=5)
+        assert info["name"] == "FakeFish 1.0"
+        assert eng.stderr_tail() == []
+    finally:
+        eng.quit()

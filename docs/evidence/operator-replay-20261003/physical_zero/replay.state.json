@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "color": "white",
+  "opponent": "simulated_opponent",
+  "game": 1,
+  "base_ms": 60000,
+  "inc_ms": 0,
+  "start_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "moves": [
+    "a2a3",
+    "e7e5"
+  ],
+  "white_ms": 0,
+  "black_ms": 56000,
+  "log_path": "docs/evidence/operator-replay-20261003/physical_zero/replay.log",
+  "result": "0-1",
+  "reason": "flag",
+  "pending_uci": null,
+  "pending_source": null,
+  "pending_depth": 0,
+  "pending_seldepth": 0,
+  "pending_nodes": 0,
+  "pending_score_cp": null,
+  "pending_score_mate": null,
+  "pending_pv": []
+}

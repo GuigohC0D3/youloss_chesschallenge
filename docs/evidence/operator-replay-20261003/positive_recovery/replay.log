@@ -1,0 +1,10 @@
+# begin turno=white
+# proposal move=1 color=white uci=a2a3 source=engine
+move=1 color=white uci=a2a3 depth=5 seldepth=7 nodes=1234 eval=+0.12 pv="a2a3" time_ms=2500 source=engine
+# press adv jogou spent_ms=3000 physical_ours=00:02 latency_allowance_ms=2000 conservative_ours_ms=0 adjusted_estimate_ms=1 (floor 1s: leitura física positiva, fallback sem flag prematuro)
+move=1 color=black uci=e7e5 time_ms=3000 source=opponent
+# clock-sync-recovery estimated_ours_ms=-1200 latency_allowance_ms=2000 physical_read_required=true
+# clock-sync-recovery physical_ours=00:05 latency_allowance_ms=2000 adjusted_estimate_ms=3000 fallback=true
+# proposal move=2 color=white uci=a3a4 source=fallback
+# fallback-lowtime restante=3000ms reserva=2000ms stop=1000ms uci=a3a4
+move=2 color=white uci=a3a4 depth=0 seldepth=0 nodes=0 eval=fallback pv="a3a4" time_ms=2300 source=fallback

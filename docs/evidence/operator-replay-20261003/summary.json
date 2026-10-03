@@ -1,0 +1,122 @@
+{
+  "normal": {
+    "data_type": "simulated",
+    "disclaimer": "simulated values, not measured operator data",
+    "final_state": {
+      "black_ms": 57000,
+      "moves": [
+        "a2a3",
+        "e7e5",
+        "a1a2"
+      ],
+      "reason": null,
+      "result": null,
+      "white_ms": 51300
+    },
+    "parameters": {
+      "base_ms": 60000,
+      "clock_latency_s": 2.0,
+      "delays_s": {
+        "clock_press_s": 0.8,
+        "clock_read_s": 1.0,
+        "engine_search_s": 0.2,
+        "opp_think_s": 3.0,
+        "piece_move_s": 1.5,
+        "uci_entry_s": 1.2
+      },
+      "safety_margin_s": 2.0
+    },
+    "scenario": "normal",
+    "search_observations": [
+      {
+        "budget_fits": true,
+        "reported_remaining_ms": 60000,
+        "reserve_ms": 2000,
+        "stop_grace_ms": 1000,
+        "timeout_ms": 15000
+      },
+      {
+        "budget_fits": true,
+        "reported_remaining_ms": 53800,
+        "reserve_ms": 2000,
+        "stop_grace_ms": 1000,
+        "timeout_ms": 13450
+      }
+    ]
+  },
+  "physical_zero": {
+    "data_type": "simulated",
+    "disclaimer": "simulated values, not measured operator data",
+    "final_state": {
+      "black_ms": 56000,
+      "moves": [
+        "a2a3",
+        "e7e5"
+      ],
+      "reason": "flag",
+      "result": "0-1",
+      "white_ms": 0
+    },
+    "parameters": {
+      "base_ms": 60000,
+      "clock_latency_s": 2.0,
+      "delays_s": {
+        "clock_press_s": 0.8,
+        "clock_read_s": 1.0,
+        "engine_search_s": 0.2,
+        "opp_think_s": 3.0,
+        "piece_move_s": 1.5,
+        "uci_entry_s": 1.2
+      },
+      "safety_margin_s": 2.0
+    },
+    "scenario": "physical_zero",
+    "search_observations": [
+      {
+        "budget_fits": true,
+        "reported_remaining_ms": 60000,
+        "reserve_ms": 2000,
+        "stop_grace_ms": 1000,
+        "timeout_ms": 15000
+      }
+    ]
+  },
+  "positive_recovery": {
+    "data_type": "simulated",
+    "disclaimer": "simulated values, not measured operator data",
+    "final_state": {
+      "black_ms": 56000,
+      "moves": [
+        "a2a3",
+        "e7e5",
+        "a3a4"
+      ],
+      "reason": null,
+      "result": null,
+      "white_ms": 700
+    },
+    "parameters": {
+      "base_ms": 60000,
+      "clock_latency_s": 2.0,
+      "delays_s": {
+        "clock_press_s": 0.8,
+        "clock_read_s": 1.0,
+        "engine_search_s": 0.2,
+        "opp_think_s": 3.0,
+        "piece_move_s": 1.5,
+        "uci_entry_s": 1.2
+      },
+      "safety_margin_s": 2.0
+    },
+    "scenario": "positive_recovery",
+    "search_observations": [
+      {
+        "budget_fits": true,
+        "reported_remaining_ms": 60000,
+        "reserve_ms": 2000,
+        "stop_grace_ms": 1000,
+        "timeout_ms": 15000
+      }
+    ]
+  }
+}

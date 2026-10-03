@@ -1,0 +1,8 @@
+# begin turno=white
+# proposal move=1 color=white uci=a2a3 source=engine
+move=1 color=white uci=a2a3 depth=5 seldepth=7 nodes=1234 eval=+0.12 pv="a2a3" time_ms=2500 source=engine
+# press adv jogou spent_ms=3000 physical_ours=00:02 latency_allowance_ms=2000 conservative_ours_ms=0 adjusted_estimate_ms=1 (floor 1s: leitura física positiva, fallback sem flag prematuro)
+move=1 color=black uci=e7e5 time_ms=3000 source=opponent
+# clock-sync-recovery estimated_ours_ms=-1200 latency_allowance_ms=2000 physical_read_required=true
+# physical flag confirmed nos=0ms source=clock
+# result=0-1 reason=flag

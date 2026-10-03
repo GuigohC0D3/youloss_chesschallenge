@@ -243,3 +243,77 @@ def test_io_error_after_game_begins_records_software_failure(tmp_path, monkeypat
 def test_clock_latency_cli_validation(tmp_path, bad_val):
     with pytest.raises(SystemExit):
         main(["start", "--color", "white", "--clock-latency", bad_val, *base_args(tmp_path)])
+
+
+def test_incident_persistence_on_startup_crash(tmp_path):
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        mode="crash_with_stderr",
+    )
+    assert code == 2
+    assert "nada foi gravado; corrija o problema e repita o mesmo start" in text
+    assert "fatal: corrupted hash table" not in text
+    incident_files = list((tmp_path / "logs").glob("*.incident.json"))
+    assert len(incident_files) == 1
+    import json
+
+    data = json.loads(incident_files[0].read_text(encoding="utf-8"))
+    assert data["failure_class"] == "EngineCrashed"
+    assert data["engine_exit_status"] == 5
+    assert data["fen"] == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    assert data["clock"] is None
+    assert any("corrupted hash table" in line for line in data["stderr_tail"])
+    assert "T" in data["timestamp"]
+
+    # Pregame retry guidance: repeating start with ok engine succeeds
+    code, _ = run(["start", "--color", "white", *base_args(tmp_path)], mode="ok")
+    assert code == 0
+
+
+def test_incident_persistence_on_search_crash(tmp_path):
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        answers=["begin"],
+        mode="dieongo_with_stderr",
+    )
+    assert code == 2
+    assert "FALHA DE SOFTWARE" in text
+    assert "critical: assertion failed" not in text
+    incident_files = list((tmp_path / "logs").glob("*.incident.json"))
+    assert len(incident_files) == 1
+    import json
+
+    data = json.loads(incident_files[0].read_text(encoding="utf-8"))
+    assert data["failure_class"] == "EngineCrashed"
+    assert data["engine_exit_status"] == 4
+    assert data["clock"] is not None
+    assert "white_ms" in data["clock"] and "black_ms" in data["clock"]
+    assert any("assertion failed" in line for line in data["stderr_tail"])
+
+    # Terminal loss preserved and log has incident note
+    state_file = next((tmp_path / "logs").glob("*.state.json"))
+    state = load_state(state_file)
+    assert state.finished and state.result == "0-1" and state.reason == "software-failure"
+    log_file = next((tmp_path / "logs").glob("*.log"))
+    log_content = log_file.read_text(encoding="utf-8")
+    assert "# incident failure_class=EngineCrashed" in log_content
+    assert "# result=0-1 reason=software-failure" in log_content
+
+
+def test_incident_persistence_failure_does_not_suppress_terminal_loss(tmp_path, monkeypatch):
+    import controller.main as main_mod
+
+    def fail_incident(*args, **kwargs):
+        raise OSError("falha de disco no sidecar")
+
+    monkeypatch.setattr(main_mod, "record_incident", fail_incident)
+    code, text = run(
+        ["start", "--color", "white", *base_args(tmp_path)],
+        answers=["begin"],
+        mode="dieongo_with_stderr",
+    )
+    assert code == 2
+    assert "FALHA DE SOFTWARE" in text
+    state_file = next((tmp_path / "logs").glob("*.state.json"))
+    state = load_state(state_file)
+    assert state.finished and state.result == "0-1" and state.reason == "software-failure"
