@@ -47,6 +47,24 @@ regras confirmadas pelo PDF; só prepare/use esses assets após confirmação da
 organização. O engine e o controlador devem iniciar com os assets locais e sem
 rede no local do evento.
 
+## Release offline (Apple Silicon Mac)
+
+Pacote offline para revisão e ensaio em Apple Silicon macOS, sem rede:
+
+```bash
+# Gerar pacote candidato (aceita checkout com alterações de trabalho)
+.venv/bin/python scripts/build_offline_release.py --candidate --output dist/youloss-candidate.tar.gz
+
+# Verificar integridade, manifesto, UCI, Python e lances legais via controlador
+.venv/bin/python scripts/verify_offline_release.py dist/youloss-candidate.tar.gz
+
+# Após extrair o arquivo, execute na raiz extraída
+./launch_youloss.sh --color white --opponent "Equipe X" --game 1
+./launch_youloss.sh --dry-run
+```
+
+*Nota:* O perfil 8 threads / 512 MiB / 2.0 s é um candidato não qualificado medido de throughput, não um perfil final de torneio. A qualificação no tabuleiro físico e a confirmação formal da organização permanecem em aberto.
+
 ## Contribuidores
 
 - [@GuigohC0D3](https://github.com/GuigohC0D3)

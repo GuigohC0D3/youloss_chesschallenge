@@ -14,3 +14,4 @@ engine/src/*.o
 engine/src/stockfish
 engine/src/stockfish.exe
 engine/src/*.nnue
+dist/

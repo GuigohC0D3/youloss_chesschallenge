@@ -4,7 +4,16 @@
 > Authority: a local copy of the 3-page event PDF, SHA256 `edcec7139d2e6ed48f6b5c43d4dee7990279c21a9e3a38cd475f8e08dc893bcf` (the PDF is not included in this repository). Interpretations are labeled as such. Prior spec/FAQ claims not established by this PDF are superseded design choices, not rules.
 > Snapshot: branch `victor`, HEAD `207a0734fd5f135703eff176f41f652c6a680397`, initially clean on 2026-09-28. Three team members assumed (engine, controller/operator, testing/release); identities unassigned. Assumptions: single offline operator station, local logs, no match network, soft compute budget chosen by evidence, role owners unassigned.
 
-> **Snapshot scope:** Sections 1–2 below preserve the initial 2026-09-28 review. Their checkout and blocker descriptions are historical. The verified progress update immediately below is the current status as of 2026-09-30 and supersedes dated claims where they differ.
+> **Snapshot scope:** Sections 1–2 preserve the initial 2026-09-28 review. Their checkout and blocker descriptions are historical. The newest update below supersedes dated claims where they differ.
+
+## 2026-10-03 progress update (newest)
+
+- Bounded engine stderr diagnostics and incident sidecars are implemented. Software failures during play remain terminal even if the sidecar cannot be written. Emergency fallback can reuse a move only after exact-FEN and legality checks.
+- `testing/operator_replay.py` now provides deterministic simulated handling-delay evidence. It does not calibrate the real 2.0-second clock allowance or replace physical-board games.
+- The match harness applies a conservative 10% initial-budget overhead policy and requires an adequate wall cap for fixed zero-increment runs. The corrected 2-game `10+0` smoke at 10 ms overhead finished 0W/1L/1D for YoulossTM with no flags; the result is only an integration check. The invalid 240-game overnight score remains excluded from strength claims.
+- The first offline candidate archive passed per-file integrity, bundled Python/chess import, engine UCI, packaged controller legal searches in both modes, and launcher preflight. It was built from the dirty implementation checkout; a clean-commit rebuild is the release gate. Candidate settings remain 8 threads/512 MiB/2.0 seconds/`1500+0`, all unqualified or provisional.
+- Full suite: **262 passed, 1 skipped**. Toolchain and asset checks passed. See `docs/release-candidate-offline.md`, `docs/organizer-clarification-draft.md`, `docs/strength-experiment-protocol.md`, and the latest section of `handoff.md` for evidence and remaining work.
+- Still open: written organizer acceptance, actual clock and board rehearsal, six qualifying physical games, sustained AC-powered profile, and a predeclared strength study with uncertainty. There is no accepted Elo gain or trained NNUE claim.
 
 ## 1A. Verified progress update — 2026-09-30
 
