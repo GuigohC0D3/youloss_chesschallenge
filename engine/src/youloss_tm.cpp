@@ -13,7 +13,7 @@ namespace Stockfish::Youloss {
 namespace {
 
 // Orçamento base: remaining / H(fase) + IncrementShare * inc
-constexpr double  HorizonOpening    = 45.0;   // lances restantes estimados, material completo
+constexpr double  HorizonOpening    = 32.0;   // lances restantes estimados, material completo
 constexpr double  HorizonEndgame    = 25.0;   // idem, só reis e peões
 constexpr double  IncrementShare    = 0.8;
 constexpr double  MaxBaseMultiple   = 5.0;    // maximum <= 5 * base
@@ -25,13 +25,13 @@ constexpr double  LowTimeShare      = 0.1;    // reserva extra <= 10% do restant
 // Ajustes por iteração
 constexpr double StabilityStart      = 1.35;
 constexpr double StabilityStep       = 0.08;
-constexpr double StabilityMin        = 0.55;
+constexpr double StabilityMin        = 0.70;
 constexpr double InstabilityWeight   = 1.8;
 constexpr double InstabilityMax      = 2.5;
 constexpr double FallAverageWeight   = 0.5;
 constexpr double FallIterationWeight = 0.25;
 constexpr double FallMin             = 0.75;
-constexpr double FallMax             = 1.75;
+constexpr double FallMax             = 2.0;
 constexpr double DecidedEvalPawns    = 5.0;
 constexpr double DecidedFactor       = 0.6;
 constexpr double DecisiveFactor      = 0.25;

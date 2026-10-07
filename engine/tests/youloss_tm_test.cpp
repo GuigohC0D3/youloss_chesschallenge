@@ -26,8 +26,8 @@ static IterationInput neutral() { return {1000.0, 0, 0.0, 0, 0, 0, false, 20, 0.
 
 static void test_budget_opening() {
     Budget b = budget({900000, 10000, 10, 1.0});  // 15+10, material completo
-    CHECK(b.optimum == 28000);                     // 900000/45 + 0.8*10000
-    CHECK(b.maximum == 140000);                    // min(5*base, 0.25*remaining)
+    CHECK(b.optimum == 36125);                     // 900000/32 + 0.8*10000
+    CHECK(b.maximum == 180625);                    // min(5*base, 0.25*remaining)
 }
 
 static void test_budget_endgame() {
@@ -46,7 +46,7 @@ static void test_budget_low_time_reserve_scales_with_clock() {
     // 400 ms no relógio: reserva extra = min(1000, 10% de 400) = 40 ms, não 1 s.
     Budget b = budget({400, 20, 10, 1.0});
     CHECK(b.maximum == 100);  // 0.25 * 400 (disponível: 400 - 10 - 40 = 350)
-    CHECK(b.optimum == 24);   // 400/45 + 0.8*20
+    CHECK(b.optimum == 28);   // 400/32 + 0.8*20 = 28.5 -> 28
 }
 
 static void test_budget_below_reserve_is_one_ms() {
@@ -72,7 +72,7 @@ static void test_iteration_neutral_and_stability() {
     CHECK(near(iteration_time(neutral()), 1350.0));  // estabilidade inicial 1.35
     IterationInput stable = neutral();
     stable.stableIterations = 20;
-    CHECK(near(iteration_time(stable), 550.0));  // piso 0.55
+    CHECK(near(iteration_time(stable), 700.0));  // piso 0.70
 }
 
 static void test_iteration_instability_is_capped() {
@@ -88,7 +88,7 @@ static void test_iteration_falling_eval_extends() {
     in.previousAverage = PawnUnits;  // caiu 1 peão em relação à média
     CHECK(near(iteration_time(in), 1350.0 * 1.5));
     in.previousAverage = 10 * PawnUnits;
-    CHECK(near(iteration_time(in), 1350.0 * 1.75));  // teto
+    CHECK(near(iteration_time(in), 1350.0 * 2.0));  // teto 2.0
     in.previousAverage = -10 * PawnUnits;             // melhorou muito
     CHECK(near(iteration_time(in), 1350.0 * 0.75));  // piso
 }

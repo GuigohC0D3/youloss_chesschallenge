@@ -40,8 +40,11 @@ def test_option_listed_with_default_true():
 def test_forced_move_is_immediate():
     eng = engine()
     try:
-        info, ms = timed(eng, "position fen k7/8/8/8/8/8/1r6/K7 w - - 0 1",
-                         "go wtime 60000 btime 60000 winc 1000 binc 1000")
+        info, ms = timed(
+            eng,
+            "position fen k7/8/8/8/8/8/1r6/K7 w - - 0 1",
+            "go wtime 60000 btime 60000 winc 1000 binc 1000",
+        )
     finally:
         eng.quit()
     assert info.bestmove == "a1b2"
@@ -50,20 +53,24 @@ def test_forced_move_is_immediate():
 
 @pytest.mark.parametrize("threads", [1, 4])
 def test_think_time_within_maximum(threads):
-    # 8 s, sem incremento, material completo: maximum = min(5*177, 2000) = 888 ms
+    # 8 s, sem incremento, material completo: maximum = min(5*250, 2000) = 1250 ms
     eng = engine(Threads=threads)
     try:
-        info, ms = timed(eng, "position startpos", "go wtime 8000 btime 8000 winc 0 binc 0")
+        info, ms = timed(
+            eng, "position startpos", "go wtime 8000 btime 8000 winc 0 binc 0"
+        )
     finally:
         eng.quit()
     assert info.depth >= 1
-    assert ms <= 888 + 150
+    assert ms <= 1250 + 150
 
 
 def test_below_reserve_answers_fast():
     eng = engine(**{"Move Overhead": 1500})
     try:
-        info, ms = timed(eng, "position startpos", "go wtime 2500 btime 2500 winc 0 binc 0")
+        info, ms = timed(
+            eng, "position startpos", "go wtime 2500 btime 2500 winc 0 binc 0"
+        )
     finally:
         eng.quit()
     assert info.bestmove
@@ -84,7 +91,9 @@ def test_movetime_and_depth_ignore_youloss_tm():
 def test_movestogo_uses_original_and_still_moves():
     eng = engine()
     try:
-        info, ms = timed(eng, "position startpos", "go wtime 8000 btime 8000 movestogo 20")
+        info, ms = timed(
+            eng, "position startpos", "go wtime 8000 btime 8000 movestogo 20"
+        )
     finally:
         eng.quit()
     assert info.bestmove and ms < 8000
@@ -109,13 +118,17 @@ def test_ponderhit_returns_within_limit():
 def test_original_tm_still_selectable():
     eng = engine(YoulossTM=False)
     try:
-        info, ms = timed(eng, "position startpos", "go wtime 8000 btime 8000 winc 0 binc 0")
+        info, ms = timed(
+            eng, "position startpos", "go wtime 8000 btime 8000 winc 0 binc 0"
+        )
     finally:
         eng.quit()
     assert info.bestmove and ms < 8000 * 0.81
 
 
 def test_bench_unchanged():
-    out = subprocess.run([str(REAL), "bench"], capture_output=True, text=True, timeout=300)
+    out = subprocess.run(
+        [str(REAL), "bench"], capture_output=True, text=True, timeout=300, check=True
+    )
     m = re.search(r"Nodes searched\s*:\s*(\d+)", out.stdout + out.stderr)
     assert m and int(m[1]) == BENCH_NODES
