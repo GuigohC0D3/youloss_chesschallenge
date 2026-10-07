@@ -59,9 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--tc",
         default="1500+0",
-        help="base+inc em segundos (padrão 1500+0 PROVISÓRIO: "
-        "interpretação de '25 min cada' — o PDF dá 25 minutos "
-        "mas não define incremento)",
+        help="base+inc em segundos (padrão oficial 1500+0: 25 min cada sem incremento)",
     )
     s.add_argument("--opponent", default="adversario")
     s.add_argument("--game", type=int, default=1)
@@ -293,8 +291,7 @@ def main(
         )
         if args.tc == "1500+0" and not resumed:
             output_fn(
-                "Tempo 1500+0 PROVISÓRIO: interpretação de '25 min cada' "
-                "(o PDF dá 25 minutos mas não define incremento)"
+                "Tempo 1500+0 (oficial Regulamento Chess Challenge III: 25 min cada sem incremento)"
             )
         if resumed:
             game.show_board()
