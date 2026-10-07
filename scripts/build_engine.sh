@@ -41,10 +41,11 @@ build() {  # $1=ARCH  $2=nome do binário
   cp "$SRC/stockfish$EXE" "$ROOT/bin/$2$EXE"
 }
 
+OUT="${ENGINE_OUT:-youloss}"
 if is_mac; then
-  build apple-silicon youloss
+  build apple-silicon "$OUT"
 else
-  build native youloss
-  build x86-64-avx2 youloss-avx2
+  build native "$OUT"
+  build x86-64-avx2 "$OUT-avx2"
 fi
-"$ROOT/bin/youloss$EXE" bench 2>&1 | tail -4
+"$ROOT/bin/$OUT$EXE" bench 2>&1 | tail -4
