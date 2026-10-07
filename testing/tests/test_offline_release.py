@@ -50,8 +50,8 @@ def test_manifest_rejects_path_traversal(tmp_path):
         "chess_version": "1.11.2", "nnue_id": "net.nnue",
         "nnue_build_input_hash": "0" * 64,
         "exact_run_settings": {
-            "threads": 8, "hash_mb": 512, "time_control": "1500+0",
-            "clock_latency_s": 2.0, "profile_status": "UNQUALIFIED CANDIDATE",
+            "threads": 7, "hash_mb": 2048, "time_control": "1500+0",
+            "clock_latency_s": 2.0, "profile_status": "MAXIMUM TECHNICAL POWER PROFILE",
         },
         "absent_optional_assets": {
             "polyglot_book": "absent", "syzygy_tablebases": "absent",

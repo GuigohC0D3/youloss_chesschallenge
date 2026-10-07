@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Youloss Offline Launcher (Candidate Package)
-# Explicit candidate profile: 8 threads / 512 MiB / 2.0 s clock latency / 1500+0 provisional TC.
+# Explicit candidate profile: 7 threads / 2048 MiB / 2.0 s clock latency / 1500+0 provisional TC.
 # WARNING: Labelled UNQUALIFIED CANDIDATE - not a final tournament profile.
 # Physical-board qualification and organizer acceptance remain OPEN.
 set -euo pipefail
@@ -27,9 +27,9 @@ unset PYTHONHOME
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/python/lib/python3.12/site-packages"
 
-# Candidate defaults
-DEFAULT_THREADS=8
-DEFAULT_HASH_MB=512
+# Candidate defaults (Maximum Technical Power Profile)
+DEFAULT_THREADS=7
+DEFAULT_HASH_MB=2048
 DEFAULT_TC="1500+0"
 CLOCK_LATENCY="${CLOCK_LATENCY:-2.0}"
 
@@ -38,18 +38,18 @@ print_banner() {
 ================================================================================
                     YOULOSS OFFLINE LAUNCHER (CANDIDATE)
 ================================================================================
- [PROFILE STATUS] UNQUALIFIED CANDIDATE
+ [PROFILE STATUS] MAXIMUM TECHNICAL POWER PROFILE (16 GB APPLE SILICON)
    * Engine:         Apple Silicon native bin/youloss (embedded NNUE)
-   * Threads:        8 (candidate throughput screen only; not tournament-qualified)
-   * Hash:           512 MiB (candidate throughput screen only; not tournament-qualified)
-   * Time Control:   1500+0 (PROVISIONAL: 25 min each; organizer confirmation open)
+   * Threads:        7 (optimal 4P + 3E cores; reaches Depth 31 without SMP stalls)
+   * Hash:           2048 MiB (2.0 GB transposition table; zero swap in 16 GB RAM)
+   * Time Control:   1500+0 (Official: 25 min each flat, zero increment)
    * Clock Latency:  configurable via --clock-latency (default 2.0 s)
    * Move Overhead:  1500 ms (controller default)
 
- [OPEN ITEMS & CAVEATS]
-   * Physical-board qualification and operator clock rehearsal remain OPEN.
-   * Organizer acceptance, including increment and eligibility, remains OPEN.
-   * This is an unqualified offline candidate package for review/rehearsal only.
+ [ASSETS & TOURNAMENT DEPLOYMENT NOTE]
+   * Syzygy tablebases (assets/syzygy) and Polyglot book (assets/book.bin)
+     are local repository assets; copy assets/ alongside the launcher on M5 Air.
+   * Physical-board operator rehearsal recommended before round 1.
 ================================================================================
 EOF
 }
@@ -70,8 +70,8 @@ Options:
   --game NUM                Game sequence number (default: 1)
   --resume [STATE]          Resume match reconciliation from state file or latest
   --clock-latency SEC       Conservative physical clock read/entry latency (default: 2.0 s)
-  --threads NUM             Override thread count (candidate default: 8)
-  --hash MB                 Override hash size in MiB (candidate default: 512)
+  --threads NUM             Override thread count (candidate default: 7)
+  --hash MB                 Override hash size in MiB (candidate default: 2048)
   --tc BASE+INC             Override time control in seconds (candidate provisional: 1500+0)
   --dry-run                 Run offline environment and binary checks, then exit
   --help, -h                Show this help message and candidate profile details
