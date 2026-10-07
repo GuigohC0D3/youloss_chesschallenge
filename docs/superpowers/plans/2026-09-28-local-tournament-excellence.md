@@ -6,11 +6,32 @@
 
 > **Snapshot scope:** Sections 1–2 preserve the initial 2026-09-28 review. Their checkout and blocker descriptions are historical. The newest update below supersedes dated claims where they differ.
 
-## 2026-10-03 progress update (newest)
+## 2026-10-04 progress update (newest)
+
+- **Checkout & test status:** Branch `victor` at HEAD `05f03f6` (synchronized with `origin/victor` at last check). Staged, unstaged, and untracked changes are preserved; no commits or pushes in this update. Full test suite: **302 passed in 49.70s** (0 skips); `bash scripts/test_engine_tm.sh` passed (`OK: youloss_tm`). Shell syntax and diff checks pass. Ruff check and format pass across the repository (including newly formatted screening test files). Focused analyzer and continuous-screening tests: 34 passed.
+- **Assets verified:** 290 Syzygy `.rtbw`/`.rtbz` 3-4-5 tablebase files (~941 MiB) are present in `assets/syzygy`; `bash scripts/verify_assets.sh` exited 0 (`OK: 291 arquivos conferem com assets/MANIFEST`). Prior notes claiming missing tablebases are superseded.
+- **Binary & candidate tracking:** Local `bin/youloss` SHA-256 `c5ae79086977e2f0d6de3a115e7b3aa241d85bca44a8524a1422527211c38301` matches the candidate binary in the 140-game run metadata. This establishes tested binary identity; do not infer clean-source reproducibility from filesystem timestamps alone.
+- **Screening partitions & tuning evidence:**
+  - *140-game FallMax comparison:* At `60+0`, 1 thread, 128 MiB Hash, 60 ms overhead, FallMax 2.25 scored 34W-70D-36L (49.29%) against the project's FallMax 2.0 binary. This is inconclusive screening, not strength evidence.
+  - *370-game official Stockfish 19 partition:* At `10+0.1`, 1 thread, 128 MiB Hash, 10 ms overhead, Youloss scored 93W-192D-85L (51.08%) against external Stockfish 19 (`8eed61129d14`). This was screening outside the preregistered protocol and is not an accepted strength conclusion. Match screening evaluates search allocation, not NNUE network training.
+  - *Preserved tuning split:* Staged FallMax 2.0 and unstaged FallMax 2.25 remain split across the index and working tree; this experimental state is intentionally preserved.
+- **Host telemetry & safety gate:** No match or engine processes active. Host was on battery at 100% (discharging) with ~989.5 MiB swap used and ~1,058.5 MiB free swap; long matches and thermal profiling were not started because the current screening gate requires sustained AC power and at least 2,048 MiB free swap.
+- **Release & organizer status:** Organizer clarification remains unsent; physical clock/board rehearsal is pending. The candidate package must be rebuilt from a reconciled, clean source state before submission.
+- **Next steps in priority order:**
+  1. AC power and >= 2 GiB free swap verification.
+  2. Reconcile and freeze candidate parameters and engine binary.
+  3. Predeclare and run independent paired study with fresh openings against pinned Stockfish 19.
+  4. Sustained AC thread/hash thermal profile on fanless M4.
+  5. Physical-board/clock rehearsal and written organizer rulings.
+  6. Clean-source build and archive verification.
+
+## 2026-10-03 progress update
 
 - Bounded engine stderr diagnostics and incident sidecars are implemented. Software failures during play remain terminal even if the sidecar cannot be written. Emergency fallback can reuse a move only after exact-FEN and legality checks.
 - `testing/operator_replay.py` now provides deterministic simulated handling-delay evidence. It does not calibrate the real 2.0-second clock allowance or replace physical-board games.
 - The match harness applies a conservative 10% initial-budget overhead policy and requires an adequate wall cap for fixed zero-increment runs. The corrected 2-game `10+0` smoke at 10 ms overhead finished 0W/1L/1D for YoulossTM with no flags; the result is only an integration check. The invalid 240-game overnight score remains excluded from strength claims.
+- **Full tournament control simulation (1500+0):** A two-game paired match at provisional `1500+0` (25m+0, 4 threads, 512 MiB Hash, 1500 ms Move Overhead, seed `2026100199`) completed in 01:26:24 without flags, crashes, or timeouts (`exit_fastchess: 0`, `exit_checker: 0`). Game 1: `tm` lost as White (0-1, checkmate at move 80, 45m28s). Game 2: `tm` drew as Black (1/2-1/2, 3-fold repetition at move 77, 40m51s). Score: 0.5/2 (25.0%). This validates full operational stability under tournament time control without time loss, but indicates YoulossTM requires time-budget tuning against Stockfish 19 base. Ignored log: `/tmp/youloss-qual.kW9Ygn/repo/logs/sprt/tm_1500+0_r1_s2026100199_20261001-235457.W1n40n/`.
+- **Time manager tuning (`youloss_tm`):** To resolve the opening/midgame depth deficit against Stockfish 19 base, `HorizonOpening` was adjusted from 45.0 to 32.0 (increasing opening allocation from ~33s to ~47s base), `StabilityMin` from 0.55 to 0.70 (preventing premature time reductions on stable root moves), and `FallMax` from 1.75 to 2.0 (granting deeper extensions during evaluation drops). C++ unit tests (`engine/tests/youloss_tm_test.cpp`) were updated and verified green. Engine was recompiled with native Apple Silicon PGO (`bash scripts/build_engine.sh`), preserving exact Stockfish bench search parity at 2,497,913 nodes. Full test suite: **262 passed, 1 skipped**.
 - The first offline candidate archive passed per-file integrity, bundled Python/chess import, engine UCI, packaged controller legal searches in both modes, and launcher preflight. It was built from the dirty implementation checkout; a clean-commit rebuild is the release gate. Candidate settings remain 8 threads/512 MiB/2.0 seconds/`1500+0`, all unqualified or provisional.
 - Full suite: **262 passed, 1 skipped**. Toolchain and asset checks passed. See `docs/release-candidate-offline.md`, `docs/organizer-clarification-draft.md`, `docs/strength-experiment-protocol.md`, and the latest section of `handoff.md` for evidence and remaining work.
 - Still open: written organizer acceptance, actual clock and board rehearsal, six qualifying physical games, sustained AC-powered profile, and a predeclared strength study with uncertainty. There is no accepted Elo gain or trained NNUE claim.
