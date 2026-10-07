@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Fail-closed tournament-match harness: fixed runs and SPRT runs of
-# youloss_tm ("tm", YoulossTM=true) vs baseline ("sf", YoulossTM=false).
+# Fail-closed tournament-match harness: fixed or SPRT YoulossTM comparisons.
+# By default, both sides use the same binary (TM enabled vs disabled). Set
+# SF_ENGINE to compare against a separate, hash-recorded Stockfish baseline.
 #
 # Uso: bash testing/tm_match.sh <tc> <rounds> [elo0 elo1]
 #   partidas fixas:  MOVE_OVERHEAD_MS=10 bash testing/tm_match.sh 10+0 100
@@ -9,6 +10,7 @@
 # Env: CONC (padrao: 1 no fanless M4 para nao sobrecarregar; sobrescrevivel),
 #      THREADS (padrao: 1), HASH_MB (padrao: 16),
 #      MOVE_OVERHEAD_MS (padrao: 1500, igual ao controlador),
+#      SYZYGY_PATH (opcional; passa as mesmas tabelas aos dois engines),
 #      TIME_CAP_S (teto wall-clock em segundos; padrao 1800 / 30 min),
 #      KILL_GRACE_S (graca entre TERM e KILL em segundos; padrao 30),
 #      SRAND (seed reproduzivel das aberturas; padrao: epoch atual, gravado).
@@ -158,7 +160,7 @@ fi
 FASTCHESS_TAG="v1.8.2-alpha"
 FASTCHESS_COMMIT="f618e34540f94f4719ad3817950618dabe441318"
 
-BOOK="$ROOT/assets/openings/UHO_Lichess_4852_v1.epd"
+BOOK="${BOOK:-$ROOT/assets/openings/UHO_Lichess_4852_v1.epd}"
 [ -s "$BOOK" ] || { echo "FAIL: sem aberturas: rode scripts/fetch_openings.sh" >&2; exit 2; }
 FASTCHESS="$ROOT/tools/fastchess$EXE"
 [ -x "$FASTCHESS" ] || { echo "FAIL: fastchess ausente: rode scripts/build_fastchess.sh" >&2; exit 2; }
@@ -172,8 +174,14 @@ SIDECAR_SHA="$(sed -E -n 's/.*"sha256": *"([^"]+)".*/\1/p' "$SIDECAR" | head -n 
 [ -n "$SIDECAR_SHA" ] || { echo "FAIL: sidecar sem sha256: $SIDECAR" >&2; exit 2; }
 [ "$SIDECAR_TAG" = "$FASTCHESS_TAG" ] || { echo "FAIL: sidecar tag $SIDECAR_TAG != pin $FASTCHESS_TAG" >&2; exit 2; }
 [ "$SIDECAR_COMMIT" = "$FASTCHESS_COMMIT" ] || { echo "FAIL: sidecar commit $SIDECAR_COMMIT != pin $FASTCHESS_COMMIT" >&2; exit 2; }
-ENGINE="$ROOT/bin/youloss$EXE"
+ENGINE="${ENGINE:-$ROOT/bin/youloss$EXE}"
 [ -x "$ENGINE" ] || { echo "FAIL: engine ausente em $ENGINE" >&2; exit 2; }
+if [ -n "${SF_ENGINE:-}" ]; then
+  SF_ENGINE="$("$PY" -c 'import os, sys; print(os.path.abspath(sys.argv[1]))' "$SF_ENGINE")"
+else
+  SF_ENGINE="$ENGINE"
+fi
+[ -x "$SF_ENGINE" ] || { echo "FAIL: baseline engine ausente ou nao executavel em $SF_ENGINE" >&2; exit 2; }
 BOOK_SHA="$($SHA256 "$BOOK")"
 BOOK_SHA="${BOOK_SHA%% *}"
 FASTCHESS_SHA="$($SHA256 "$FASTCHESS")"
@@ -181,6 +189,119 @@ FASTCHESS_SHA="${FASTCHESS_SHA%% *}"
 [ "$FASTCHESS_SHA" = "$SIDECAR_SHA" ] || { echo "FAIL: hash do binario $FASTCHESS_SHA != sidecar $SIDECAR_SHA: rode scripts/build_fastchess.sh" >&2; exit 2; }
 ENGINE_SHA="$($SHA256 "$ENGINE")"
 ENGINE_SHA="${ENGINE_SHA%% *}"
+SF_ENGINE_SHA="$($SHA256 "$SF_ENGINE")"
+SF_ENGINE_SHA="${SF_ENGINE_SHA%% *}"
+if [ -z "${SF_ENGINE_LABEL:-}" ]; then
+  if [ "$SF_ENGINE_SHA" = "$ENGINE_SHA" ]; then
+    SF_ENGINE_LABEL="YoulossTM-off"
+  else
+    SF_ENGINE_LABEL="stockfish-baseline"
+  fi
+fi
+case "$SF_ENGINE_LABEL" in
+  ''|*[!A-Za-z0-9._-]*) echo "FAIL: SF_ENGINE_LABEL deve usar apenas letras, numeros, ponto, underscore ou hifen" >&2; exit 2 ;;
+esac
+SF_OPTIONS=()
+SF_OPTIONS_DESCRIPTION="external:${SF_ENGINE_LABEL}"
+if [ "$SF_ENGINE_SHA" = "$ENGINE_SHA" ]; then
+  SF_OPTIONS=(option.YoulossTM=false)
+  SF_OPTIONS_DESCRIPTION="YoulossTM=false"
+fi
+
+# Keep endgame probing symmetric between the two engines. Tablebases are
+# opt-in because tournament permission has not been confirmed; set
+# SYZYGY_PATH="$ROOT/assets/syzygy" for a local comparison that uses them.
+SYZYGY_CONFIGURED=0
+if [ "${SYZYGY_PATH+x}" = x ]; then
+  SYZYGY_DIR="$SYZYGY_PATH"
+  SYZYGY_CONFIGURED=1
+else
+  SYZYGY_DIR=""
+fi
+SYZYGY_ENABLED=false
+SYZYGY_WDL=0
+SYZYGY_DTZ=0
+SYZYGY_PROBE_LIMIT=""
+SYZYGY_FINGERPRINT=""
+SYZYGY_FINGERPRINT_SOURCE="none"
+SYZYGY_OPTIONS=()
+if [ -n "$SYZYGY_DIR" ]; then
+  if [ ! -d "$SYZYGY_DIR" ]; then
+    if [ "$SYZYGY_CONFIGURED" = 1 ]; then
+      echo "FAIL: SYZYGY_PATH is not a directory: $SYZYGY_DIR" >&2
+      exit 2
+    fi
+    SYZYGY_DIR=""
+  else
+    SYZYGY_DIR="$("$PY" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "$SYZYGY_DIR")"
+    shopt -s nullglob
+    SYZYGY_WDL_FILES=("$SYZYGY_DIR"/*.rtbw)
+    SYZYGY_DTZ_FILES=("$SYZYGY_DIR"/*.rtbz)
+    shopt -u nullglob
+    SYZYGY_WDL="${#SYZYGY_WDL_FILES[@]}"
+    SYZYGY_DTZ="${#SYZYGY_DTZ_FILES[@]}"
+    if [ "$SYZYGY_WDL" -gt 0 ] || [ "$SYZYGY_DTZ" -gt 0 ]; then
+      [ "$SYZYGY_WDL" -gt 0 ] && [ "$SYZYGY_WDL" -eq "$SYZYGY_DTZ" ] || {
+        echo "FAIL: Syzygy WDL/DTZ files must be present in matching counts (WDL=$SYZYGY_WDL DTZ=$SYZYGY_DTZ)" >&2
+        exit 2
+      }
+      for table in "${SYZYGY_WDL_FILES[@]}"; do
+        [ -s "${table%.rtbw}.rtbz" ] || {
+          echo "FAIL: Syzygy DTZ pair missing for ${table##*/}" >&2
+          exit 2
+        }
+      done
+      SYZYGY_ENABLED=true
+      SYZYGY_PROBE_LIMIT=5
+      SYZYGY_OPTIONS=(
+        "option.SyzygyPath=$SYZYGY_DIR"
+        "option.SyzygyProbeLimit=$SYZYGY_PROBE_LIMIT"
+      )
+      case "$SYZYGY_DIR" in
+        "$ROOT"/assets/*) SYZYGY_FINGERPRINT_SOURCE="asset_manifest" ;;
+        *) SYZYGY_FINGERPRINT_SOURCE="content_sha256" ;;
+      esac
+      SYZYGY_FINGERPRINT="$("$PY" - "$ROOT/assets" "$ROOT/assets/MANIFEST" "$SYZYGY_DIR" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+assets = pathlib.Path(sys.argv[1]).resolve()
+manifest = pathlib.Path(sys.argv[2])
+directory = pathlib.Path(sys.argv[3]).resolve()
+tables = sorted(
+    [*directory.glob("*.rtbw"), *directory.glob("*.rtbz")],
+    key=lambda path: path.name,
+)
+records = {}
+if manifest.is_file():
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        fields = line.split(maxsplit=1)
+        if len(fields) == 2:
+            records[fields[1].lstrip("*")] = fields[0]
+
+if tables and all(path.resolve().is_relative_to(assets) for path in tables):
+    rows = []
+    for path in tables:
+        relative = path.resolve().relative_to(assets).as_posix()
+        if relative not in records:
+            raise SystemExit(f"FAIL: Syzygy table is absent from assets/MANIFEST: {relative}")
+        rows.append(f"{relative} {records[relative]}\n")
+else:
+    rows = []
+    for path in tables:
+        digest = hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
+        rows.append(f"{path.name} {digest}\n")
+print(hashlib.sha256("".join(rows).encode()).hexdigest())
+PY
+)"
+    fi
+  fi
+fi
+SYZYGY_PATH_JSON="$("$PY" -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$SYZYGY_DIR")"
+SYZYGY_FINGERPRINT_JSON="$("$PY" -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$SYZYGY_FINGERPRINT")"
+SYZYGY_PROBE_LIMIT_JSON=null
+[ -z "$SYZYGY_PROBE_LIMIT" ] || SYZYGY_PROBE_LIMIT_JSON="$SYZYGY_PROBE_LIMIT"
 
 GAMES_PER_ROUND=2
 EXPECTED_GAMES=$(( ROUNDS * GAMES_PER_ROUND ))
@@ -200,8 +321,8 @@ TIMEOUT_F="$RUNDIR/.timeout"
 
 FC_ARGS=(
   -engine "cmd=$ENGINE" name=tm option.YoulossTM=true
-  -engine "cmd=$ENGINE" name=sf option.YoulossTM=false
-  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB" "option.Move Overhead=$MOVE_OVERHEAD_MS"
+  -engine "cmd=$SF_ENGINE" name=sf "${SF_OPTIONS[@]}"
+  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB" "option.Move Overhead=$MOVE_OVERHEAD_MS" "${SYZYGY_OPTIONS[@]}"
   -openings "file=$BOOK" format=epd order=random
   -srand "$SRAND"
   -rounds "$ROUNDS" -games "$GAMES_PER_ROUND" -concurrency "$CONC"
@@ -214,6 +335,10 @@ echo "== match $NAME"
 echo "tc=$TC rounds=$ROUNDS games_per_round=$GAMES_PER_ROUND conc=$CONC threads=$THREADS hash_mb=$HASH_MB move_overhead_ms=$MOVE_OVERHEAD_MS"
 echo "seed=$SRAND book_sha256=$BOOK_SHA"
 echo "runner=$FASTCHESS_TAG commit=$FASTCHESS_COMMIT sha256=$FASTCHESS_SHA time_cap_s=$TIME_CAP_S (sidecar verificado: $SIDECAR)"
+echo "syzygy_enabled=$SYZYGY_ENABLED path=${SYZYGY_DIR:-disabled} wdl=$SYZYGY_WDL dtz=$SYZYGY_DTZ probe_limit=${SYZYGY_PROBE_LIMIT:-disabled} fingerprint=$SYZYGY_FINGERPRINT"
+if [ "$SF_ENGINE_SHA" != "$ENGINE_SHA" ]; then
+  echo "baseline=$SF_ENGINE_LABEL binary=$SF_ENGINE sha256=$SF_ENGINE_SHA options=$SF_OPTIONS_DESCRIPTION"
+fi
 [ "$SPRT" = 0 ] || echo "sprt=[$ELO0, $ELO1] alpha=0.05 beta=0.05"
 echo "rundir=$RUNDIR"
 
@@ -332,6 +457,13 @@ COMPLETED_JSON="${COMPLETED:-null}"
   printf '  "threads": %s,\n' "$THREADS"
   printf '  "hash_mb": %s,\n' "$HASH_MB"
   printf '  "move_overhead_ms": %s,\n' "$MOVE_OVERHEAD_MS"
+  printf '  "syzygy_enabled": %s,\n' "$SYZYGY_ENABLED"
+  printf '  "syzygy_path": %s,\n' "$SYZYGY_PATH_JSON"
+  printf '  "syzygy_wdl_files": %s,\n' "$SYZYGY_WDL"
+  printf '  "syzygy_dtz_files": %s,\n' "$SYZYGY_DTZ"
+  printf '  "syzygy_probe_limit": %s,\n' "$SYZYGY_PROBE_LIMIT_JSON"
+  printf '  "syzygy_fingerprint_source": "%s",\n' "$SYZYGY_FINGERPRINT_SOURCE"
+  printf '  "syzygy_fingerprint": %s,\n' "$SYZYGY_FINGERPRINT_JSON"
   printf '  "time_cap_s": %s,\n' "$TIME_CAP_S"
   printf '  "kill_grace_s": %s,\n' "$KILL_GRACE_S"
   printf '  "timeout": %s,\n' "$TIMEOUT"
@@ -347,7 +479,11 @@ COMPLETED_JSON="${COMPLETED:-null}"
   printf '  "runner_sha256_verified": "%s",\n' "$SIDECAR_SHA"
   printf '  "engine": "%s",\n' "$ENGINE"
   printf '  "engine_sha256": "%s",\n' "$ENGINE_SHA"
-  printf '  "engine_options": "tm: YoulossTM=true; sf: YoulossTM=false; each: Threads=%s Hash=%s Move Overhead=%sms",\n' "$THREADS" "$HASH_MB" "$MOVE_OVERHEAD_MS"
+  printf '  "sf_engine": "%s",\n' "$SF_ENGINE"
+  printf '  "sf_engine_sha256": "%s",\n' "$SF_ENGINE_SHA"
+  printf '  "sf_engine_label": "%s",\n' "$SF_ENGINE_LABEL"
+  printf '  "sf_engine_options": "%s",\n' "$SF_OPTIONS_DESCRIPTION"
+  printf '  "engine_options": "tm: YoulossTM=true; sf: %s; each: Threads=%s Hash=%s Move Overhead=%sms Syzygy=%s",\n' "$SF_OPTIONS_DESCRIPTION" "$THREADS" "$HASH_MB" "$MOVE_OVERHEAD_MS" "$SYZYGY_ENABLED"
   printf '  "sprt": %s,\n' "$SPRT"
   printf '  "sprt_elo0": "%s",\n' "$ELO0"
   printf '  "sprt_elo1": "%s",\n' "$ELO1"

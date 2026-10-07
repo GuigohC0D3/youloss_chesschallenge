@@ -6,11 +6,11 @@ scripts/build_fastchess.sh.
 """
 
 import hashlib
-import re
 import json
 import os
-import signal
+import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -67,6 +67,7 @@ def run_checker(
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
 
 
@@ -95,17 +96,15 @@ def run_opening_fetch(tmp_path: Path, expected: bytes, downloaded: bytes):
     fake_curl.write_text(
         "#!/bin/sh\n"
         "set -eu\n"
-        "while [ \"$#\" -gt 0 ]; do\n"
-        "  if [ \"$1\" = '-o' ]; then cp \"$FIXTURE_ZIP\" \"$2\"; shift 2; "
+        'while [ "$#" -gt 0 ]; do\n'
+        '  if [ "$1" = \'-o\' ]; then cp "$FIXTURE_ZIP" "$2"; shift 2; '
         "else shift; fi\n"
         "done\n",
         encoding="utf-8",
     )
     fake_curl.chmod(0o755)
     python = repo / ".venv" / "bin" / "python"
-    python.write_text(
-        "#!/bin/sh\nexec \"$TEST_REAL_PYTHON\" \"$@\"\n", encoding="utf-8"
-    )
+    python.write_text('#!/bin/sh\nexec "$TEST_REAL_PYTHON" "$@"\n', encoding="utf-8")
     python.chmod(0o755)
 
     env = os.environ.copy()
@@ -119,6 +118,7 @@ def run_opening_fetch(tmp_path: Path, expected: bytes, downloaded: bytes):
         capture_output=True,
         text=True,
         timeout=30,
+        check=False,
     )
     opening = repo / "assets" / "openings" / "UHO_Lichess_4852_v1.epd"
     return result, manifest, manifest_bytes, opening
@@ -350,6 +350,10 @@ def test_tm_match_failclosed_constraints():
     ) in text
     assert '"threads": %s' in text and '"hash_mb": %s' in text
     assert '"move_overhead_ms": %s' in text
+    assert '"syzygy_enabled": %s' in text
+    assert '"syzygy_fingerprint": %s' in text
+    assert '"sf_engine_sha256": "%s"' in text
+    assert "SF_ENGINE" in text
 
 
 def test_build_fastchess_pin_matches_tm_match():
@@ -438,7 +442,7 @@ def _make_fake_root(tmp_path: Path) -> Path:
     fc = fake / "tools" / "fastchess"
     fc.write_text(
         "#!/usr/bin/env bash\n"
-        "printf '%s\\n' \"$@\" > \"$FAKE_FASTCHESS_ARGS\"\n"
+        'printf \'%s\\n\' "$@" > "$FAKE_FASTCHESS_ARGS"\n'
         "echo 'FAKE-STDOUT-MARKER'\n"
         "echo 'FAKE-STDERR-MARKER' >&2\n"
         "exit 1\n",
@@ -490,6 +494,7 @@ def test_tm_match_rejects_overhead_above_scaled_budget_policy(
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
 
     assert result.returncode == 2
@@ -521,6 +526,7 @@ def test_tm_match_allows_calibrated_overhead_horizons(
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
 
     # The stub intentionally exits nonzero after printing; reaching it proves
@@ -556,6 +562,7 @@ def test_tm_match_rejects_unsupported_or_malformed_time_control(tmp_path, bad_tc
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
 
     assert result.returncode == 2
@@ -592,6 +599,7 @@ def test_tm_match_zero_increment_time_cap_preflight(
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
 
     if should_fail:
@@ -623,6 +631,7 @@ def test_tm_match_does_not_reject_incremented_or_sprt_cap_without_bound(tmp_path
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
     assert "cannot cover maximum clock time" not in r1.stderr
     assert "FAKE-STDOUT-MARKER" in r1.stdout
@@ -643,6 +652,7 @@ def test_tm_match_does_not_reject_incremented_or_sprt_cap_without_bound(tmp_path
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
     assert "cannot cover maximum clock time" not in r2.stderr
     assert "FAKE-STDOUT-MARKER" in r2.stdout
@@ -664,6 +674,7 @@ def _run_fake_tm(fake: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
 
 
@@ -680,6 +691,7 @@ def test_tm_match_rejects_partial_sprt_bounds_before_starting_run(tmp_path, elo_
         capture_output=True,
         text=True,
         timeout=10,
+        check=False,
     )
 
     assert result.returncode == 2
@@ -721,9 +733,10 @@ def test_tm_match_synthetic_nonzero_runner_fails_closed(tmp_path):
     assert meta["rundir"] == str(rundir)
     assert meta["name"] == rundir.name
     assert meta["move_overhead_ms"] == 20
-    assert "option.Move Overhead=20" in (
-        fake / "fastchess-args.txt"
-    ).read_text().splitlines()
+    assert (
+        "option.Move Overhead=20"
+        in (fake / "fastchess-args.txt").read_text().splitlines()
+    )
     # Same-parameter second run must land in a distinct directory (no overwrite).
     start2 = time.monotonic()
     r2 = _run_fake_tm(fake)
@@ -745,8 +758,8 @@ def _write_term_ignoring_runner(fake: Path) -> None:
         "echo 'FAKE-STDERR-MARKER' >&2\n"
         "sleep 8 &\n"
         "child=$!\n"
-        "if [ -n \"${FAKE_CHILD_PID_FILE:-}\" ]; then echo \"$child\" >\"$FAKE_CHILD_PID_FILE\"; fi\n"
-        "wait \"$child\"\n",
+        'if [ -n "${FAKE_CHILD_PID_FILE:-}" ]; then echo "$child" >"$FAKE_CHILD_PID_FILE"; fi\n'
+        'wait "$child"\n',
         encoding="utf-8",
     )
     fc.chmod(0o755)
@@ -776,6 +789,7 @@ def _run_fake_timeout_tm(fake: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         timeout=120,
+        check=False,
     )
 
 
@@ -822,7 +836,7 @@ def _write_runner_with_live_descendant(fake: Path, child_pid_file: Path) -> None
         "#!/usr/bin/env bash\n"
         "(trap '' TERM; sleep 30) &\n"
         "CHILD_PID=$!\n"
-        "printf '%s\\n' \"$CHILD_PID\" >\"$FAKE_CHILD_PID_FILE\"\n"
+        'printf \'%s\\n\' "$CHILD_PID" >"$FAKE_CHILD_PID_FILE"\n'
         "echo 'FAKE-STDOUT-MARKER'\n"
         "echo 'FAKE-STDERR-MARKER' >&2\n"
         "exit 0\n",
@@ -847,6 +861,7 @@ def _pid_is_live(pid: int) -> bool:
         capture_output=True,
         text=True,
         timeout=2,
+        check=False,
     )
     state = result.stdout.strip()
     return bool(state) and not state.startswith("Z")
@@ -1000,6 +1015,7 @@ def test_build_fastchess_creates_missing_tools_dir(tmp_path):
         capture_output=True,
         text=True,
         timeout=60,
+        check=False,
     )
     assert r.returncode == 0, f"stdout={r.stdout}\nstderr={r.stderr}"
     assert (fake / "tools").is_dir()  # builder created missing parent
@@ -1021,3 +1037,339 @@ def test_build_fastchess_creates_missing_tools_dir(tmp_path):
     import hashlib
 
     assert data["sha256"] == hashlib.sha256(binaries[0].read_bytes()).hexdigest()
+
+
+def test_tm_match_external_baseline_command_arguments_and_metadata(tmp_path):
+    """External baseline binary must be invoked without YoulossTM option,
+
+    and recorded in meta.json with its SHA, label, and options description.
+    """
+    fake = _make_fake_root(tmp_path)
+    sf_ext = fake / "bin" / "stockfish_official"
+    sf_ext.write_text("#!/usr/bin/env bash\necho fake-sf19\n", encoding="utf-8")
+    sf_ext.chmod(0o755)
+    import hashlib
+
+    sf_sha = hashlib.sha256(sf_ext.read_bytes()).hexdigest()
+    youloss_sha = hashlib.sha256((fake / "bin" / "youloss").read_bytes()).hexdigest()
+    assert sf_sha != youloss_sha
+
+    args_file = fake / "fastchess-args.txt"
+    env = dict(
+        os.environ,
+        CONC="1",
+        MOVE_OVERHEAD_MS="20",
+        TIME_CAP_S="15",
+        SRAND="12345",
+        SF_ENGINE=str(sf_ext),
+        SF_ENGINE_LABEL="sf19-official",
+        FAKE_FASTCHESS_ARGS=str(args_file),
+    )
+    r = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert r.returncode != 0  # fake fastchess exits 1
+    args = args_file.read_text().splitlines()
+
+    # tm side has option.YoulossTM=true
+    assert f"cmd={fake / 'bin' / 'youloss'}" in args
+    assert "option.YoulossTM=true" in args
+
+    # sf side points to external binary and DOES NOT have YoulossTM
+    assert f"cmd={sf_ext}" in args
+    assert "option.YoulossTM=false" not in args
+
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    assert len(rundirs) == 1
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    assert meta["engine"] == str(fake / "bin" / "youloss")
+    assert meta["engine_sha256"] == youloss_sha
+    assert meta["sf_engine"] == str(sf_ext)
+    assert meta["sf_engine_sha256"] == sf_sha
+    assert meta["sf_engine_label"] == "sf19-official"
+    assert meta["sf_engine_options"] == "external:sf19-official"
+    assert "sf: external:sf19-official;" in meta["engine_options"]
+
+
+def test_tm_match_applies_identical_syzygy_to_both_engines_and_records_it(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    syzygy = fake / "assets" / "syzygy"
+    syzygy.mkdir()
+    contents = {
+        "KQvK.rtbw": b"wdl-table-data",
+        "KQvK.rtbz": b"dtz-table-data",
+    }
+    manifest_rows = []
+    for name, data in contents.items():
+        (syzygy / name).write_bytes(data)
+        manifest_rows.append(f"{hashlib.sha256(data).hexdigest()} *syzygy/{name}\n")
+    (fake / "assets" / "MANIFEST").write_text("".join(manifest_rows), encoding="utf-8")
+
+    sf_ext = fake / "bin" / "stockfish_official"
+    sf_ext.write_text("#!/usr/bin/env bash\necho fake-sf19\n", encoding="utf-8")
+    sf_ext.chmod(0o755)
+    args_file = fake / "fastchess-args.txt"
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="20",
+            TIME_CAP_S="15",
+            SRAND="12345",
+            SYZYGY_PATH=str(syzygy),
+            SF_ENGINE=str(sf_ext),
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode != 0  # fake fastchess stops after recording arguments
+    args = args_file.read_text(encoding="utf-8").splitlines()
+    syzygy_path = str(syzygy.resolve())
+    assert args.count(f"option.SyzygyPath={syzygy_path}") == 1
+    assert args.count("option.SyzygyProbeLimit=5") == 1
+    assert "-each" in args
+
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    assert len(rundirs) == 1
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    expected_fingerprint = hashlib.sha256(
+        "".join(
+            f"syzygy/{name} {hashlib.sha256(data).hexdigest()}\n"
+            for name, data in sorted(contents.items())
+        ).encode()
+    ).hexdigest()
+    assert meta["syzygy_enabled"] is True
+    assert meta["syzygy_path"] == syzygy_path
+    assert meta["syzygy_wdl_files"] == 1
+    assert meta["syzygy_dtz_files"] == 1
+    assert meta["syzygy_probe_limit"] == 5
+    assert meta["syzygy_fingerprint_source"] == "asset_manifest"
+    assert meta["syzygy_fingerprint"] == expected_fingerprint
+    assert "Syzygy=true" in meta["engine_options"]
+
+
+def test_tm_match_can_explicitly_disable_available_syzygy_tables(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    syzygy = fake / "assets" / "syzygy"
+    syzygy.mkdir()
+    (syzygy / "KQvK.rtbw").write_bytes(b"wdl-table-data")
+    (syzygy / "KQvK.rtbz").write_bytes(b"dtz-table-data")
+    args_file = fake / "fastchess-args.txt"
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="20",
+            TIME_CAP_S="15",
+            SRAND="12345",
+            SYZYGY_PATH="",
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    args = args_file.read_text(encoding="utf-8").splitlines()
+    assert not any(arg.startswith("option.Syzygy") for arg in args)
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    assert meta["syzygy_enabled"] is False
+    assert meta["syzygy_path"] == ""
+    assert meta["syzygy_wdl_files"] == 0
+    assert meta["syzygy_dtz_files"] == 0
+    assert meta["syzygy_probe_limit"] is None
+    assert meta["syzygy_fingerprint_source"] == "none"
+    assert meta["syzygy_fingerprint"] == ""
+
+
+def test_tm_match_hashes_tables_from_external_directory(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    syzygy = tmp_path / "external tables"
+    syzygy.mkdir()
+    contents = {
+        "KQvK.rtbw": b"external-wdl",
+        "KQvK.rtbz": b"external-dtz",
+    }
+    for name, data in contents.items():
+        (syzygy / name).write_bytes(data)
+
+    args_file = fake / "fastchess-args.txt"
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="20",
+            TIME_CAP_S="15",
+            SRAND="12345",
+            SYZYGY_PATH=str(syzygy),
+            FAKE_FASTCHESS_ARGS=str(args_file),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert f"option.SyzygyPath={syzygy.resolve()}" in args_file.read_text().splitlines()
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    expected_fingerprint = hashlib.sha256(
+        "".join(
+            f"{name} {hashlib.sha256(data).hexdigest()}\n"
+            for name, data in sorted(contents.items())
+        ).encode()
+    ).hexdigest()
+    assert meta["syzygy_path"] == str(syzygy.resolve())
+    assert meta["syzygy_fingerprint_source"] == "content_sha256"
+    assert meta["syzygy_fingerprint"] == expected_fingerprint
+
+
+def test_tm_match_rejects_unpaired_syzygy_tables(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    syzygy = fake / "assets" / "syzygy"
+    syzygy.mkdir()
+    (syzygy / "KQvK.rtbw").write_bytes(b"wdl-table-data")
+
+    result = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            CONC="1",
+            MOVE_OVERHEAD_MS="20",
+            TIME_CAP_S="15",
+            SYZYGY_PATH=str(syzygy),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "WDL/DTZ files must be present in matching counts" in result.stderr
+    assert not (fake / "fastchess-args.txt").exists()
+
+
+def test_tm_match_external_baseline_default_label(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    sf_ext = fake / "bin" / "stockfish_official"
+    sf_ext.write_text("#!/usr/bin/env bash\necho fake-sf\n", encoding="utf-8")
+    sf_ext.chmod(0o755)
+
+    args_file = fake / "fastchess-args.txt"
+    env = dict(
+        os.environ,
+        CONC="1",
+        MOVE_OVERHEAD_MS="20",
+        TIME_CAP_S="15",
+        SRAND="12345",
+        SF_ENGINE=str(sf_ext),
+        FAKE_FASTCHESS_ARGS=str(args_file),
+    )
+    r = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert r.returncode != 0
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    assert len(rundirs) == 1
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    assert meta["sf_engine_label"] == "stockfish-baseline"
+    assert meta["sf_engine_options"] == "external:stockfish-baseline"
+
+
+def test_tm_match_same_binary_baseline_options_and_metadata(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    args_file = fake / "fastchess-args.txt"
+    env = dict(
+        os.environ,
+        CONC="1",
+        MOVE_OVERHEAD_MS="20",
+        TIME_CAP_S="15",
+        SRAND="12345",
+        FAKE_FASTCHESS_ARGS=str(args_file),
+    )
+    r = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert r.returncode != 0
+    args = args_file.read_text().splitlines()
+    assert "option.YoulossTM=false" in args
+
+    rundirs = sorted((fake / "logs" / "sprt").glob("tm_10+0.1_r1_*"))
+    assert len(rundirs) == 1
+    meta = json.loads((rundirs[0] / "meta.json").read_text(encoding="utf-8"))
+    assert meta["sf_engine_sha256"] == meta["engine_sha256"]
+    assert meta["sf_engine_label"] == "YoulossTM-off"
+    assert meta["sf_engine_options"] == "YoulossTM=false"
+    assert "sf: YoulossTM=false;" in meta["engine_options"]
+
+
+def test_tm_match_rejects_missing_or_nonexecutable_sf_engine(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    r = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            MOVE_OVERHEAD_MS="20",
+            SF_ENGINE=str(fake / "bin" / "nonexistent_engine"),
+        ),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert r.returncode == 2
+    assert "baseline engine ausente ou nao executavel" in r.stderr
+
+
+def test_tm_match_rejects_invalid_sf_engine_label(tmp_path):
+    fake = _make_fake_root(tmp_path)
+    r = subprocess.run(
+        ["bash", str(fake / "testing" / "tm_match.sh"), "10+0.1", "1"],
+        cwd=str(fake),
+        env=dict(
+            os.environ,
+            MOVE_OVERHEAD_MS="20",
+            SF_ENGINE_LABEL="invalid label with spaces",
+        ),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert r.returncode == 2
+    assert "SF_ENGINE_LABEL deve usar apenas letras" in r.stderr
