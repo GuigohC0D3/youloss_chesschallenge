@@ -5,15 +5,36 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/platform.sh"
-BASE="https://tablebase.lichess.ovh/tables/standard/3-4-5"
+BASE_WDL="https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl"
+BASE_DTZ="https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz"
 DEST="assets/syzygy"
 mkdir -p "$DEST"
-files=$(curl -fsSL "$BASE/" | grep -oE 'href="[KQRBNP]+v[KQRBNP]+\.rtb[wz]"' \
-  | sed -e 's/^href="//' -e 's/"$//' | sort -u)
-[ -n "$files" ] || { echo "nenhuma tabela listada em $BASE/" >&2; exit 1; }
-for f in $files; do
+
+echo "Listing 3-4-5 WDL and DTZ tables from Lichess..."
+wdl_files=$(curl -fsSL "$BASE_WDL/" | grep -oE 'href="[KQRBNP]+v[KQRBNP]+\.rtbw"' | sed -e 's/^href="//' -e 's/"$//' | sort -u)
+dtz_files=$(curl -fsSL "$BASE_DTZ/" | grep -oE 'href="[KQRBNP]+v[KQRBNP]+\.rtbz"' | sed -e 's/^href="//' -e 's/"$//' | sort -u)
+
+[ -n "$wdl_files" ] || { echo "nenhuma tabela WDL listada em $BASE_WDL/" >&2; exit 1; }
+[ -n "$dtz_files" ] || { echo "nenhuma tabela DTZ listada em $BASE_DTZ/" >&2; exit 1; }
+
+total_wdl=$(echo "$wdl_files" | wc -l | tr -d ' ')
+count=0
+for f in $wdl_files; do
+  count=$((count + 1))
   if [ ! -s "$DEST/$f" ]; then
-    curl -fsSL --retry 3 -o "$DEST/$f.part" "$BASE/$f"
+    echo "[$count/$total_wdl] Fetching WDL: $f"
+    curl -fsSL --retry 3 -o "$DEST/$f.part" "$BASE_WDL/$f"
+    mv "$DEST/$f.part" "$DEST/$f"
+  fi
+done
+
+total_dtz=$(echo "$dtz_files" | wc -l | tr -d ' ')
+count=0
+for f in $dtz_files; do
+  count=$((count + 1))
+  if [ ! -s "$DEST/$f" ]; then
+    echo "[$count/$total_dtz] Fetching DTZ: $f"
+    curl -fsSL --retry 3 -o "$DEST/$f.part" "$BASE_DTZ/$f"
     mv "$DEST/$f.part" "$DEST/$f"
   fi
 done
