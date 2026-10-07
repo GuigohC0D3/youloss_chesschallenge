@@ -108,10 +108,10 @@ Engine::Engine(std::optional<std::filesystem::path> path) :
 
     options.add("Move Overhead", Option(10, 0, 5000));
 
+    options.add("nodestime", Option(0, 0, 10000));
+
     // Youloss: gestão de tempo autoral (youloss_tm). false restaura a original.
     options.add("YoulossTM", Option(true));
-
-    options.add("nodestime", Option(0, 0, 10000));
 
     options.add("UCI_Chess960", Option(false));
 
