@@ -1,6 +1,17 @@
 # Youloss Chess Challenge — Handoff
 
-## 2026-11-04 — YoulossTM de volta, livro de aberturas (mais recente)
+## 2026-11-04 — correção de relógio e aceite da organização (mais recente)
+
+- A simulação em 1500+0 zerou o relógio de `9df551c` em 1 de 2 partidas. A correção está na
+  `main`: reserva `Move Overhead × H` com piso de 25%, corte em posição empatada e overhead de
+  4000 ms.
+- A correção entrou como exceção do dono à regra pré-registrada, reprovada por um lance de 39 s
+  em +0,00. Ver `docs/evidence/2026-11-04-tm-dead-draw-preregistration.md`.
+- O dono informou que a organização aceita o motor, o livro e as tablebases.
+- Pendente: `--dry-run` no M4 e ensaio com relógio físico, medindo o custo real por lance.
+  O pacote não traz as tablebases; copie `assets/syzygy/` para jogar com elas.
+
+## 2026-11-04 — YoulossTM de volta, livro de aberturas
 
 - A pedido do dono, o engine voltou a ser modificado: `sf_19` + YoulossTM. Ver `engine/ORIGIN.md`.
 - `assets/book.bin` entra no pacote, checado por `scripts/vet_opening_book.py`.
@@ -12,8 +23,7 @@
   a bancada foi para `archive/youloss-tm/`. O SPRT S2 e o restante do plano abaixo foram
   abandonados, e tudo que vem depois desta seção é histórico.
 - Interface nova: `controller/web.py` + `web_ui.html`. Operação no `README.md`.
-- Pendente: confirmar com a organização se Stockfish sem modificações é aceito, rodar
-  `--dry-run` no M4 e ensaiar com relógio físico.
+- Pendências desta data: ver a seção mais recente.
 
 ## 2026-10-07 update — devbrain port complete, M5 handoff (newest)
 

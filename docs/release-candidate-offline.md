@@ -21,4 +21,14 @@ bench 2497913, uma jogada real pela interface com o engine e o lançador.
 
 - Rodar `./launch_stockfish.sh --dry-run` no próprio M4. O pacote foi testado no M5.
 - Ensaio com tabuleiro e relógio físicos, para medir o desconto de `--clock-latency`.
-- Resposta da organização: ver `docs/organizer-clarification-draft.md`.
+
+## Tablebases
+
+O pacote não traz as tablebases (939 MB). Para jogar com elas, como nos testes em 1500+0,
+copie `assets/syzygy/` para dentro da pasta extraída ou use `--syzygy <caminho>`. Isso vale
+também para o M4.
+
+## Organização
+
+O dono informou em 2026-11-04 que a organização aceita o motor, o livro e as tablebases. Não
+há cópia escrita da resposta no repositório.

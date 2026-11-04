@@ -121,6 +121,7 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
         "exact_run_settings",
         "absent_optional_assets",
         "open_items",
+        "organizer_acceptance",
         "gpl_compliance",
         "files",
     ]
@@ -139,8 +140,8 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
     open_items = manifest["open_items"]
     if "OPEN" not in open_items.get("physical_board_qualification", "").upper():
         raise VerificationError("Manifest must record physical_board_qualification as OPEN")
-    if "OPEN" not in open_items.get("organizer_acceptance", "").upper():
-        raise VerificationError("Manifest must record organizer_acceptance as OPEN")
+    if not manifest["organizer_acceptance"].upper().startswith("CONFIRMED"):
+        raise VerificationError("Manifest must record organizer_acceptance as CONFIRMED")
 
     # Check absent optional assets
     absent = manifest["absent_optional_assets"]
@@ -385,8 +386,7 @@ def verify_gpl_and_open_status(extract_root: Path, manifest: dict[str, Any]) -> 
 
     print("=" * 72)
     print(f"  Manifest verified: {len(manifest['files'])} files. Engine: Stockfish 19 + YoulossTM.")
-    print("  OPEN: physical-board rehearsal; run --dry-run on the M4 itself;")
-    print("        organizer acceptance of the modification, book and rules.")
+    print("  OPEN: physical-board rehearsal; run --dry-run on the M4 itself.")
     print("=" * 72)
 
 

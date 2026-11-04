@@ -84,11 +84,12 @@ ele usa de fato são estes dois formatos:
   `scripts/build_opening_book.py`, até 10 meios-lances. `scripts/vet_opening_book.py` testa
   cada lance com o próprio engine e descarta os ruins. Fora do livro, o engine calcula.
 - **Tablebases de finais** (`assets/syzygy/`, até 5 peças, 939 MB, fora do pacote):
-  usadas automaticamente se a pasta existir junto do programa.
+  usadas automaticamente se a pasta existir junto do programa. Com o pacote, copie
+  `assets/syzygy/` para dentro da pasta extraída ou use `--syzygy <caminho>`. Confira a tela
+  inicial: ela precisa mostrar "com tablebases".
 
-O uso dos dois depende de confirmação da organização: ver
-`docs/organizer-clarification-draft.md`. Para desligar, use `--book` apontando outro arquivo
-ou remova `assets/book.bin`.
+O dono informou em 2026-11-04 que a organização aceita o motor, o livro e as tablebases. Para
+desligar o livro, use `--book` apontando outro arquivo ou remova `assets/book.bin`.
 
 ## Simular um dia de torneio
 

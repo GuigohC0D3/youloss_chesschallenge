@@ -55,9 +55,8 @@ def test_manifest_rejects_path_traversal(tmp_path):
         "absent_optional_assets": {
             "polyglot_book": "RELEASE_MANIFEST.json", "syzygy_tablebases": "absent",
         },
-        "open_items": {
-            "physical_board_qualification": "OPEN", "organizer_acceptance": "OPEN",
-        },
+        "open_items": {"physical_board_qualification": "OPEN"},
+        "organizer_acceptance": "CONFIRMED by project owner report on 2026-11-04",
         "gpl_compliance": {},
         "files": {"../outside": {"sha256": "0" * 64, "size": 0}},
     }

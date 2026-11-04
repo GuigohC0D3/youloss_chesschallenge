@@ -1,6 +1,6 @@
 # Draft for organizer clarification (send by a registered teammate)
 
-**Status:** Draft only; no message has been sent. The official PDF and event announcement were reviewed on 2026-10-01. Record the organizer's written answers, date, and sender before changing the tournament profile.
+**Status:** Superseded on 2026-11-04: the project owner reported that the organizer accepts the engine, opening book and tablebases. No written copy of the answer is in this repository. Kept as a record; the remaining questions below were not confirmed by that report.
 
 **To:** icev@somosicev.com
 

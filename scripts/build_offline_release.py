@@ -314,8 +314,8 @@ O relógio da tela é estimativa; o físico é a referência. Use "Corrigir rel�
 divergir. "Desfazer" volta para antes do último lance do adversário. Não feche a
 tampa do Mac: mantenha na tomada. Logs ficam em `logs/`.
 
-Tablebases de finais são opcionais (939 MB): copie a pasta `assets/syzygy` para cá, se a
-organização permitir, e elas são usadas automaticamente.
+Tablebases de finais (939 MB) não vêm no pacote: copie a pasta `assets/syzygy` para cá e elas
+são usadas automaticamente. A tela inicial deve mostrar "com tablebases".
 
 ## Licença
 
@@ -364,8 +364,8 @@ A rede NNUE está embutida em `bin/stockfish` (comando UCI `export_net` a extrai
             },
             "open_items": {
                 "physical_board_qualification": "OPEN",
-                "organizer_acceptance": "OPEN",
             },
+            "organizer_acceptance": "CONFIRMED by project owner report on 2026-11-04",
             "gpl_compliance": {
                 "license": "GPLv3 (see engine/Copying.txt)",
                 "origin": "Stockfish 19 + YoulossTM (see engine/ORIGIN.md)",
