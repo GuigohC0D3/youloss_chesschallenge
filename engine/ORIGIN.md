@@ -20,11 +20,14 @@ tempo YoulossTM. Busca, avaliação e rede neural são as do Stockfish.
 
 ## O que o YoulossTM muda
 
-Orçamento por lance: `restante / H(fase) + 0,8 × incremento`, com H entre 32 (material
+Orçamento por lance: `gastável / H(fase) + 0,8 × incremento`, com H entre 32 (material
 completo) e 25 (só reis e peões) e teto de 25% do relógio. A cada iteração o alvo se ajusta
 pela estabilidade do melhor lance, pela queda de avaliação e pela concentração de nós.
 
-O Stockfish original reserva `Move Overhead × (lances restantes + 2)`. O YoulossTM desconta
-o overhead uma vez, então não zera o orçamento com pouco tempo no relógio.
+O gastável é `restante − Move Overhead × H`, para reservar o custo de cada lance futuro, com
+piso de 25% do restante. Assim o orçamento não zera com pouco tempo no relógio.
+
+Em posição empatada, com avaliação atual, média do lance anterior e iteração anterior em até
+±2 unidades internas, o alvo cai para `optimum × estabilidade × 0,5`.
 
 Os testes de força não mostram ganho estatístico: ver `docs/evidence/`.
