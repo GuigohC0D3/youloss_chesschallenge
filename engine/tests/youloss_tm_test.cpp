@@ -22,7 +22,8 @@ static int failures = 0;
 
 static bool near(double a, double b) { return std::abs(a - b) <= 1e-6 * std::max(1.0, std::abs(b)); }
 
-static IterationInput neutral() { return {1000.0, 0, 0.0, 0, 0, 0, false, 20, 0.5}; }
+// Avaliação 100 (fora da faixa de empate morto) e sem queda: todos os ajustes neutros.
+static IterationInput neutral() { return {1000.0, 0, 0.0, 100, 100, 100, false, 20, 0.5}; }
 
 static void test_budget_opening() {
     Budget b = budget({900000, 10000, 10, 1.0});  // 15+10, material completo
@@ -85,7 +86,7 @@ static void test_iteration_instability_is_capped() {
 
 static void test_iteration_falling_eval_extends() {
     IterationInput in = neutral();
-    in.previousAverage = PawnUnits;  // caiu 1 peão em relação à média
+    in.previousAverage = in.eval + PawnUnits;  // caiu 1 peão em relação à média
     CHECK(near(iteration_time(in), 1350.0 * 1.5));
     in.previousAverage = 10 * PawnUnits;
     CHECK(near(iteration_time(in), 1350.0 * 2.0));  // teto 2.0
@@ -109,6 +110,40 @@ static void test_iteration_clear_best_move_cuts() {
     CHECK(near(iteration_time(in), 1350.0 * 0.85));
 }
 
+static IterationInput dead_draw() {
+    IterationInput in = neutral();
+    in.eval = in.previousAverage = in.previousIteration = 0;
+    in.bestMoveChanges = 5.0;  // lances equivalentes trocam de lugar sem significado
+    return in;
+}
+
+static void test_dead_draw_ignores_instability_and_halves() {
+    CHECK(near(iteration_time(dead_draw()), 675.0));  // 1000 * 1.35 * 0.5
+    IterationInput stable = dead_draw();
+    stable.stableIterations = 100;
+    CHECK(near(iteration_time(stable), 350.0));  // 1000 * 0.70 * 0.5
+}
+
+static void test_dead_draw_accepts_draw_score_noise() {
+    IterationInput in = dead_draw();
+    in.eval              = 2;
+    in.previousAverage   = -2;
+    in.previousIteration = 1;
+    CHECK(near(iteration_time(in), 675.0));
+}
+
+static void test_near_draw_keeps_normal_rules() {
+    IterationInput current = dead_draw();
+    current.eval = 3;  // lance atual fora da faixa
+    CHECK(iteration_time(current) > 1350.0);
+    IterationInput history = dead_draw();
+    history.previousAverage = 40;  // vinha melhor: a queda precisa de mais tempo
+    CHECK(iteration_time(history) > 1350.0);
+    IterationInput past = dead_draw();
+    past.previousIteration = -3;
+    CHECK(iteration_time(past) > 1350.0);
+}
+
 int main() {
     test_budget_opening();
     test_budget_endgame();
@@ -122,6 +157,9 @@ int main() {
     test_iteration_falling_eval_extends();
     test_iteration_decided_position_cuts();
     test_iteration_clear_best_move_cuts();
+    test_dead_draw_ignores_instability_and_halves();
+    test_dead_draw_accepts_draw_score_noise();
+    test_near_draw_keeps_normal_rules();
     if (failures)
     {
         std::printf("%d falha(s)\n", failures);

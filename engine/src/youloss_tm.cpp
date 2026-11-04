@@ -39,6 +39,11 @@ constexpr double EffortLow           = 0.76;
 constexpr double EffortHigh          = 0.95;
 constexpr double EffortMinFactor     = 0.7;
 
+// Empate morto: score de empate agora, no lance anterior e nas iterações recentes.
+// Lances equivalentes trocam de lugar sem significado, então a instabilidade não vale.
+constexpr int    DeadDrawEval   = 2;  // unidades internas, cerca de 0,01 peão
+constexpr double DeadDrawFactor = 0.5;
+
 }  // namespace
 
 Budget budget(const BudgetInput& in) {
@@ -67,6 +72,10 @@ double iteration_time(const IterationInput& in) {
 
     const double stability =
       std::max(StabilityMin, StabilityStart - StabilityStep * in.stableIterations);
+    if (std::abs(in.eval) <= DeadDrawEval && std::abs(in.previousAverage) <= DeadDrawEval
+        && std::abs(in.previousIteration) <= DeadDrawEval)
+        return in.optimum * stability * DeadDrawFactor;
+
     const double instability =
       std::min(InstabilityMax, 1.0 + InstabilityWeight * in.bestMoveChanges);
 
