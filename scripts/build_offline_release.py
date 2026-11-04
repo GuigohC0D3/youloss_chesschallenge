@@ -1,21 +1,15 @@
 #!/usr/bin/env python3
-"""Offline Candidate Release Builder for Youloss (macOS Apple Silicon).
+"""Monta o pacote offline: Stockfish 19 + interface (macOS Apple Silicon).
 
-Stages:
-  1. bin/youloss executable (embedded NNUE, native Apple Silicon)
-  2. Tracked controller source (excluding tests and logs)
-  3. Pinned Python 3.12 runtime from sys.base_prefix + chess==1.11.2 and dist-info
-  4. Tracked Stockfish/Youloss source, GPLv3 license, and ORIGIN
-  5. Local default engine/src/nn-1a298aa575a0.nnue build input
-  6. Offline launcher script (launch_youloss.sh)
-  7. RELEASE_MANIFEST.json hashing every bundled file and recording metadata
+Conteúdo:
+  1. bin/stockfish (NNUE embutida; ARMv8.2 genérico, roda em M4 e M5)
+  2. controller/ sem testes, incluindo a interface web
+  3. vendor/chess: python-chess 1.11.2 (usa o python3 da máquina, 3.9+)
+  4. engine/: código-fonte do Stockfish, GPLv3 e ORIGIN
+  5. launch_stockfish.sh e LEIA-ME.md
+  6. RELEASE_MANIFEST.json com o hash de cada arquivo
 
-Excludes:
-  - Test runners (testing/, pytest)
-  - Logs (logs/)
-  - Secrets / .git
-  - .venv
-  - Optional assets (polyglot book, Syzygy tablebases)
+Fora do pacote: testes, logs, .venv, tablebases e a cópia da NNUE (já vai no binário).
 """
 
 from __future__ import annotations
@@ -34,6 +28,10 @@ import sys
 import tarfile
 import tempfile
 from typing import Any
+
+
+NNUE_ID = "nn-1a298aa575a0.nnue"
+ENGINE_BENCH = 2497913
 
 
 def sha256_file(path: Path) -> str:
@@ -145,79 +143,21 @@ def copy_tree_filtered(
                 shutil.copy2(src_file, dst_file)
 
 
-def stage_python_runtime(staging_dir: Path, venv_root: Path | None) -> tuple[str, str]:
-    target_python_dir = staging_dir / "python"
-    base_prefix = Path(sys.base_prefix).resolve()
+def stage_vendored_chess(staging_dir: Path) -> str:
+    """Copia python-chess (Python puro) para vendor/, com licença e metadados."""
+    import chess
 
-    if not base_prefix.is_dir():
-        raise RuntimeError(f"sys.base_prefix is not a directory: {base_prefix}")
-
-    python_version = sys.version.split()[0]
-    if sys.version_info[:2] != (3, 12) or platform.machine() != "arm64" or sys.platform != "darwin":
-        raise RuntimeError("Offline candidate requires macOS arm64 Python 3.12")
-    print(f"Staging pinned Python {python_version} runtime from: {base_prefix}")
-
-    ignore_patterns = {
-        "__pycache__",
-        "*.pyc",
-        ".DS_Store",
-        ".pytest_cache",
-        ".ruff_cache",
-    }
-    copy_tree_filtered(base_prefix, target_python_dir, ignore_patterns)
-
-    # Locate installed chess package and dist-info
-    try:
-        import chess
-        chess_version = chess.__version__
-        if chess_version != "1.11.2":
-            raise RuntimeError(f"Expected chess==1.11.2, found {chess_version}")
-        chess_dir = Path(chess.__file__).resolve().parent
-    except Exception as e:
-        raise RuntimeError(f"Failed to import chess package from active environment: {e}") from e
-
-    site_packages_candidates: list[Path] = []
-    # Look in the directory containing chess
-    site_packages_candidates.append(chess_dir.parent)
-    if venv_root:
-        for p in (venv_root / "lib").glob("python*/site-packages"):
-            if p.is_dir() and p not in site_packages_candidates:
-                site_packages_candidates.append(p)
-
-    dist_info_dir: Path | None = None
-    for cand in site_packages_candidates:
-        match = list(cand.glob(f"chess-{chess_version}*.dist-info"))
-        if match:
-            dist_info_dir = match[0]
-            break
-
-    # Determine target site-packages inside staged python
-    py_ver_tag = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    target_site_packages = target_python_dir / "lib" / py_ver_tag / "site-packages"
-    target_site_packages.mkdir(parents=True, exist_ok=True)
-
-    # Copy chess package
-    target_chess = target_site_packages / "chess"
-    if target_chess.exists():
-        shutil.rmtree(target_chess)
-    copy_tree_filtered(chess_dir, target_chess, ignore_patterns)
-
-    # Copy chess dist-info with license
-    if dist_info_dir and dist_info_dir.is_dir():
-        target_dist_info = target_site_packages / dist_info_dir.name
-        if target_dist_info.exists():
-            shutil.rmtree(target_dist_info)
-        copy_tree_filtered(dist_info_dir, target_dist_info, ignore_patterns)
-    else:
+    if chess.__version__ != "1.11.2":
+        raise RuntimeError(f"Expected chess==1.11.2, found {chess.__version__}")
+    chess_dir = Path(chess.__file__).resolve().parent
+    target = staging_dir / "vendor"
+    ignore = {"__pycache__", ".DS_Store"}
+    copy_tree_filtered(chess_dir, target / "chess", ignore)
+    dist_info = list(chess_dir.parent.glob(f"chess-{chess.__version__}*.dist-info"))
+    if not dist_info:
         raise RuntimeError("chess==1.11.2 dist-info and license are required in the release")
-
-    # Ensure python binaries are executable
-    for py_bin in (target_python_dir / "bin").glob("python*"):
-        if py_bin.is_file() and not py_bin.is_symlink():
-            current_mode = os.stat(py_bin).st_mode
-            os.chmod(py_bin, current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-    return python_version, chess_version
+    copy_tree_filtered(dist_info[0], target / dist_info[0].name, ignore)
+    return chess.__version__
 
 
 def stage_controller_source(repo_root: Path, staging_dir: Path) -> None:
@@ -231,7 +171,7 @@ def stage_controller_source(repo_root: Path, staging_dir: Path) -> None:
             continue
         if item.name == "tests" or item.suffix in (".pyc", ".DS_Store"):
             continue
-        if item.is_file() and item.suffix == ".py":
+        if item.is_file() and item.suffix in (".py", ".html"):
             shutil.copy2(item, dst_ctrl / item.name)
 
 
@@ -270,21 +210,17 @@ def stage_engine_source(repo_root: Path, staging_dir: Path) -> str:
         dirs[:] = [d for d in dirs if d not in ignore_engine]
 
         for f in files:
-            if f in ignore_engine or f.endswith(".o") or f.endswith(".pyc"):
+            if f in ignore_engine or f.endswith((".o", ".pyc", ".nnue")):
                 continue
-            # Note: We keep nn-*.nnue build input!
             source_file = Path(root) / f
             if source_file.is_symlink() and not source_file.resolve().is_relative_to(src_code.resolve()):
                 raise RuntimeError(f"Engine source symlink escapes source tree: {source_file}")
             shutil.copy2(source_file, target_dir / f)
 
-    # Verify NNUE build input net
-    nnue_path = dst_code / "nn-1a298aa575a0.nnue"
-    if not nnue_path.is_file():
-        raise RuntimeError(f"Default NNUE build input not found at {nnue_path}")
-    nnue_hash = sha256_file(nnue_path)
-    print(f"Staged NNUE build input: {nnue_path.name} (SHA-256: {nnue_hash})")
-    return nnue_hash
+    net_path = src_code / NNUE_ID
+    if not net_path.is_file():
+        raise RuntimeError(f"Default NNUE not found at {net_path}")
+    return sha256_file(net_path)
 
 
 def build_release_package(
@@ -319,7 +255,7 @@ def build_release_package(
         # 1. Stage binary
         target_bin_dir = staging_base / "bin"
         target_bin_dir.mkdir(parents=True, exist_ok=True)
-        target_engine = target_bin_dir / "youloss"
+        target_engine = target_bin_dir / "stockfish"
         shutil.copy2(engine_bin, target_engine)
         os.chmod(target_engine, 0o755)
         binary_hash = sha256_file(target_engine)
@@ -328,60 +264,54 @@ def build_release_package(
         # 2. Stage controller
         stage_controller_source(repo_root, staging_base)
 
-        # 3. Stage Python runtime & chess
-        venv_dir = repo_root / ".venv"
-        python_ver, chess_ver = stage_python_runtime(
-            staging_base,
-            venv_dir if venv_dir.is_dir() else None,
-        )
+        # 3. Stage python-chess
+        chess_ver = stage_vendored_chess(staging_base)
 
         # 4. Stage Engine source and NNUE build input
         nnue_hash = stage_engine_source(repo_root, staging_base)
 
         # 5. Stage Launcher
-        launcher_src = repo_root / "release" / "launch_youloss.sh"
+        launcher_src = repo_root / "release" / "launch_stockfish.sh"
         if not launcher_src.is_file():
             raise RuntimeError(f"Launcher script missing at: {launcher_src}")
-        target_launcher = staging_base / "launch_youloss.sh"
+        target_launcher = staging_base / "launch_stockfish.sh"
         shutil.copy2(launcher_src, target_launcher)
         os.chmod(target_launcher, 0o755)
 
         # 6. Stage README
-        readme_content = f"""# Youloss Offline Release Candidate
+        readme_content = f"""# Stockfish 19 para o III Chess Challenge
 
-Package: youloss-candidate
-Generated: {datetime.now(timezone.utc).isoformat()}
-Architecture: {platform.machine()}-{sys.platform} (Apple Silicon macOS)
-Source Commit: {commit} (Dirty: {is_dirty}, Candidate Mode: {candidate_mode})
+Programa offline para Mac Apple Silicon (testado no M5; feito para M4 e M5).
+Engine: Stockfish 19 oficial, sem modificações. Interface: autoria da equipe Youloss.
 
-## WARNING: Unqualified Candidate Profile
-This candidate package uses the measured throughput candidate:
-  - Threads: 8
-  - Hash: 512 MiB
-  - Time Control: 1500+0 (PROVISIONAL: 25 minutes each, zero increment assumed)
-  - Clock Latency: 2.0 s (CONFIGURABLE: conservative provisional deduction)
-  - Move Overhead: 1500 ms (controller default)
+Gerado em {datetime.now(timezone.utc).date().isoformat()} a partir do commit {commit[:10]} (alterações locais: {is_dirty}).
 
-This profile is a measured throughput candidate from 2026-10-02 screening.
-It is NOT a frozen tournament profile and has NOT received organizer confirmation.
+## Como usar
 
-## Open Items
-1. Physical-board qualification and operator clock rehearsal remain OPEN.
-2. Organizer confirmation of rules (increment, book/tablebase policy, venue) remains OPEN.
+No Terminal, dentro desta pasta:
 
-## Usage
-Run directly from this extracted package:
-  ./launch_youloss.sh --color white --opponent "Team X" --game 1
-  ./launch_youloss.sh --resume
-  ./launch_youloss.sh --help
-  ./launch_youloss.sh --dry-run
+    ./launch_stockfish.sh --dry-run   # confere o Mac; rode antes da partida
+    ./launch_stockfish.sh             # abre o tabuleiro no navegador
 
-## GPL Compliance & Provenance
-Derived from Stockfish 19 with custom YoulossTM time manager.
-See engine/Copying.txt (GPLv3) and engine/ORIGIN.md for complete provenance.
-Full engine source and build input NNUE (engine/src/nn-1a298aa575a0.nnue) are included.
+Se o macOS recusar a execução: `bash launch_stockfish.sh`. É preciso ter python3
+(`xcode-select --install`, com internet, se ainda não houver).
+
+## Durante a partida
+
+1. Escolha a cor, o adversário e inicie junto com o relógio físico.
+2. Digite o lance do adversário e tecle Enter: e2e4, e7e8q, Nf3, Cf3 ou O-O.
+3. O nosso lance aparece em destaque e no tabuleiro. Jogue-o e aperte o relógio.
+
+O relógio da tela é estimativa; o físico é a referência. Use "Corrigir relógio" se
+divergir. "Desfazer" volta para antes do último lance do adversário. Não feche a
+tampa do Mac: mantenha na tomada. Logs ficam em `logs/`.
+
+## Licença
+
+GPLv3. Código-fonte em `engine/`; origem e verificação em `engine/ORIGIN.md`.
+A rede NNUE está embutida em `bin/stockfish` (comando UCI `export_net` a extrai).
 """
-        (staging_base / "RELEASE_README.md").write_text(readme_content, encoding="utf-8")
+        (staging_base / "LEIA-ME.md").write_text(readme_content, encoding="utf-8")
 
         # 7. Hash every file for RELEASE_MANIFEST.json
         print("Computing SHA-256 hashes for all bundled files...")
@@ -398,44 +328,37 @@ Full engine source and build input NNUE (engine/src/nn-1a298aa575a0.nnue) are in
                 }
 
         manifest_data = {
-            "manifest_version": "1.0",
-            "package_name": "youloss-offline-candidate",
+            "manifest_version": "2.0",
+            "package_name": "stockfish-chess-challenge",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "architecture": f"{platform.machine()}-{sys.platform}",
             "source_commit": commit,
             "git_dirty": is_dirty,
             "candidate_mode": candidate_mode,
-            "binary_path": "bin/youloss",
+            "binary_path": "bin/stockfish",
             "binary_hash": binary_hash,
-            "python_version": python_ver,
+            "engine_bench": ENGINE_BENCH,
             "chess_version": chess_ver,
-            "nnue_id": "nn-1a298aa575a0.nnue",
-            "nnue_build_input_hash": nnue_hash,
+            "nnue_id": NNUE_ID,
+            "nnue_sha256": nnue_hash,
             "exact_run_settings": {
-                "threads": 7,
-                "threads_label": "MAXIMUM TECHNICAL POWER (optimal 4P + 3E cores on Apple Silicon)",
-                "hash_mb": 2048,
-                "hash_label": "MAXIMUM TECHNICAL POWER (2.0 GB transposition table in 16 GB RAM, zero swap)",
+                "threads": "auto",
+                "hash_mb": "auto",
                 "time_control": "1500+0",
-                "time_control_label": "OFFICIAL (Regulamento Chess Challenge III: 25 min flat, zero increment)",
                 "clock_latency_s": 2.0,
-                "clock_latency_label": "CONFIGURABLE (default 2.0s; physical rehearsal recommended)",
-                "move_overhead_ms": 1500,
-                "profile_status": "MAXIMUM TECHNICAL POWER PROFILE (16 GB Apple Silicon)",
             },
             "absent_optional_assets": {
-                "polyglot_book": "absent (no assets/book.bin bundled; local default only)",
-                "syzygy_tablebases": "absent (no assets/syzygy bundled; local default only)",
+                "polyglot_book": "absent",
+                "syzygy_tablebases": "absent",
             },
             "open_items": {
-                "physical_board_qualification": "OPEN - physical-board qualification and operator rehearsal remain open",
-                "organizer_acceptance": "OPEN - organizer rules confirmation and acceptance remain open",
+                "physical_board_qualification": "OPEN",
+                "organizer_acceptance": "OPEN",
             },
             "gpl_compliance": {
                 "license": "GPLv3 (see engine/Copying.txt)",
-                "origin": "Stockfish 19-derived (see engine/ORIGIN.md)",
+                "origin": "Stockfish 19, unmodified (see engine/ORIGIN.md)",
                 "source_included": True,
-                "build_input_nnue_included": True,
             },
             "files": manifest_files,
         }
@@ -460,8 +383,8 @@ Full engine source and build input NNUE (engine/src/nn-1a298aa575a0.nnue) are in
                     tarinfo = tar.gettarinfo(str(file_path), arcname=str(rel_path))
                     tarinfo.uid = 0
                     tarinfo.gid = 0
-                    tarinfo.uname = "youloss"
-                    tarinfo.gname = "youloss"
+                    tarinfo.uname = "stockfish"
+                    tarinfo.gname = "stockfish"
                     if file_path.is_file() and not file_path.is_symlink():
                         with file_path.open("rb") as f_obj:
                             tar.addfile(tarinfo, f_obj)
@@ -476,12 +399,12 @@ Full engine source and build input NNUE (engine/src/nn-1a298aa575a0.nnue) are in
 
 
 def parse_args() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Build Youloss offline candidate release package.")
+    p = argparse.ArgumentParser(description="Build the offline Stockfish release package.")
     p.add_argument(
         "--output",
         type=Path,
-        default=Path("dist/youloss-candidate.tar.gz"),
-        help="Path for output archive (default: dist/youloss-candidate.tar.gz)",
+        default=Path("dist/stockfish-chess-challenge.tar.gz"),
+        help="Path for output archive (default: dist/stockfish-chess-challenge.tar.gz)",
     )
     p.add_argument(
         "--candidate",
@@ -500,8 +423,8 @@ def parse_args() -> argparse.ArgumentParser:
     p.add_argument(
         "--engine-bin",
         type=Path,
-        default=Path("bin/youloss"),
-        help="Path to engine binary (default: bin/youloss)",
+        default=Path("bin/stockfish"),
+        help="Path to engine binary (default: bin/stockfish)",
     )
     return p
 

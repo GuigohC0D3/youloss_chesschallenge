@@ -1,5 +1,14 @@
 # Youloss Chess Challenge — Handoff
 
+## 2026-11-03 — projeto migrado para Stockfish 19 puro (mais recente)
+
+- `engine/` agora é o `sf_19` oficial sem modificações (bench 2497913). O YoulossTM saiu;
+  a bancada foi para `archive/youloss-tm/`. O SPRT S2 e o restante do plano abaixo foram
+  abandonados, e tudo que vem depois desta seção é histórico.
+- Interface nova: `controller/web.py` + `web_ui.html`. Operação no `README.md`.
+- Pendente: confirmar com a organização se Stockfish sem modificações é aceito, rodar
+  `--dry-run` no M4 e ensaiar com relógio físico.
+
 ## 2026-10-07 update — devbrain port complete, M5 handoff (newest)
 
 - **Read `docs/evidence/2026-10-07-m5-project-handoff.md` first** — it is the complete

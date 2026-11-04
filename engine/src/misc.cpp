@@ -54,7 +54,7 @@ namespace fs = std::filesystem;
 namespace {
 
 // Version number or dev.
-constexpr std::string_view version = "dev";
+constexpr std::string_view version = "19";
 
 // Our fancy logging facility. The trick here is to replace cin.rdbuf() and
 // cout.rdbuf() with two Tie objects that tie cin and cout to a file stream. We
@@ -343,33 +343,27 @@ std::array<DebugExtremes, MaxDebugSlots> extremes;
 
 }  // namespace
 
-bool dbg_hit_on(bool cond, int slot) {
+void dbg_hit_on(bool cond, int slot) {
 
     ++hit.at(slot)[0];
     if (cond)
         ++hit.at(slot)[1];
-
-    return cond;
 }
 
-i64 dbg_mean_of(i64 value, int slot) {
+void dbg_mean_of(i64 value, int slot) {
 
     ++mean.at(slot)[0];
     mean.at(slot)[1] += value;
-
-    return value;
 }
 
-i64 dbg_stdev_of(i64 value, int slot) {
+void dbg_stdev_of(i64 value, int slot) {
 
     ++stdev.at(slot)[0];
     stdev.at(slot)[1] += value;
     stdev.at(slot)[2] += value * value;
-
-    return value;
 }
 
-i64 dbg_extremes_of(i64 value, int slot) {
+void dbg_extremes_of(i64 value, int slot) {
     ++extremes.at(slot)[0];
 
     i64 current_max = extremes.at(slot)[1].load();
@@ -379,8 +373,6 @@ i64 dbg_extremes_of(i64 value, int slot) {
     i64 current_min = extremes.at(slot)[2].load();
     while (current_min > value && !extremes.at(slot)[2].compare_exchange_weak(current_min, value))
     {}
-
-    return value;
 }
 
 void dbg_correl_of(i64 value1, i64 value2, int slot) {
@@ -607,7 +599,7 @@ bool is_whitespace(std::string_view s) {
 
 
 // Return the directory where our Stockfish binary sits. This is useful,
-// because when the NNUE network is not embedded in the binary, this directory
+// because when the NNUE network is not embeded in the binary, this directory
 // is one of the locations where we look for the NNUE file.
 fs::path CommandLine::get_binary_directory(fs::path argv0) {
 
@@ -628,6 +620,9 @@ fs::path CommandLine::get_binary_directory(fs::path argv0) {
         binaryDirectory = fs::path(".");
     return binaryDirectory;
 }
+
+// Return the working directory
+fs::path CommandLine::get_working_directory() { return std::filesystem::current_path(); }
 
 
 // On Windows, tell the console to use UTF8 encoding

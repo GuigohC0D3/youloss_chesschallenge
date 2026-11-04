@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
-#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -40,7 +39,6 @@
 
 #include "misc.h"
 #include "shm.h"
-#include "thread_native.h"
 
 // We support linux very well, but we explicitly do NOT support Android,
 // because there is no affected systems, not worth maintaining.
@@ -71,6 +69,9 @@ using SetThreadSelectedCpuSetMasks_t = BOOL (*)(HANDLE, PGROUP_AFFINITY, USHORT)
 using GetThreadSelectedCpuSetMasks_t = BOOL (*)(HANDLE, PGROUP_AFFINITY, USHORT, PUSHORT);
 
 #endif
+
+#include "misc.h"
+#include "thread_native.h"
 
 namespace Stockfish {
 

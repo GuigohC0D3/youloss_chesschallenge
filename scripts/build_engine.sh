@@ -24,7 +24,10 @@ build() {  # $1=ARCH  $2=nome do binário
   local mk profile
   if is_mac; then
     # O Makefile procura llvm-profdata ao lado do clang++ e não acha o do Xcode.
-    mk=(make -C "$SRC" ARCH="$1" COMP=clang LLVM_PROFDATA="$(xcrun -f llvm-profdata)")
+    # MACOSX_VERSION_MIN fixo: sem ele o binário herda a versão do macOS de quem
+    # compilou e pode ser recusado em outro Mac (M4 com macOS mais antigo).
+    mk=(make -C "$SRC" ARCH="$1" COMP=clang MACOSX_VERSION_MIN=11.0
+        LLVM_PROFDATA="$(xcrun -f llvm-profdata)")
     profile=clang
   else
     mk=(make -C "$SRC" ARCH="$1" COMP=mingw)
@@ -41,7 +44,7 @@ build() {  # $1=ARCH  $2=nome do binário
   cp "$SRC/stockfish$EXE" "$ROOT/bin/$2$EXE"
 }
 
-OUT="${ENGINE_OUT:-youloss}"
+OUT="${ENGINE_OUT:-stockfish}"
 if is_mac; then
   build apple-silicon "$OUT"
 else

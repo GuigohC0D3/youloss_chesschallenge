@@ -37,3 +37,19 @@ Spec: `docs/superpowers/specs/2026-10-06-state-of-the-art-design.md`
   REQUIRE_AC=1 within 60s of AC returning.
 5de10e10a18d03f0ef788473b1b89b5fba7928ce7670b77245b3bd4e96d4d518  bin/youloss_devport
 id name Stockfish dev-20261003-m-05f03f6e
+
+### 2026-10-15 — S2 relaunched on the M5 (owner's machine, AC, lid open)
+
+- Machine: Apple M5 (4P+6E, 16 GB), `/bin/bash` 3.2. Setup via `scripts/m5_setup.sh`.
+- Fingerprints: frozen `bin/youloss` sha `24e00a638029b5e61a14e302555ffed7b655bd87a77af526e80628916cb00145`
+  bench 2,497,913 (PGO rebuild; differs from `c5ae7908…`, no counted games under the old SHA) ·
+  `bin/youloss_devport` sha `3b42145b92d9a2621719243a4e9ef63691bf765df09ffde30fdeb86a451bd4d8` bench 1,714,434 ·
+  net `nn-252f33942263` · fastchess v1.8.2-alpha `f618e34`, sha `5b15b3b8…349fe3`.
+- Fixes before the first counted game (no protocol change): empty-array expansions in
+  `testing/tm_match.sh` guarded for bash 3.2 (`set -u` aborted 13 harness tests); `m5_setup.sh`
+  now rebuilds fastchess when the pinned sidecar is missing.
+- Batch #1 11:03 rejected at preflight (sidecar missing, child exit 2, 0 games). Relaunched 11:04
+  with identical preregistered parameters plus `LIVE_LOG=1` (observation-only UCI log for
+  `testing/live_view.py`). Gates: pytest 335 passed, `OK: youloss_tm`.
+- 2026-10-15 ~12:00: stopped by owner (moving machine). Batch in progress (games 1-2 draws, game 3 started)
+  discarded by design; still 0 counted games. Clean stop, no orphan processes.

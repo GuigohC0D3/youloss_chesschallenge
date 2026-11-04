@@ -5,7 +5,7 @@
 # f618e34540f94f4719ad3817950618dabe441318. A tag remota e a HEAD clonada
 # sao ambas verificadas antes/depois do build; qualquer divergencia aborta.
 # O sidecar tools/fastchess.build.json registra tag/commit/SHA-256 exatos
-# do binario construido; testing/tm_match.sh exige e valida esse sidecar
+# do binario construido; archive/youloss-tm/testing/tm_match.sh validava esse sidecar
 # antes de rodar (fail-closed contra binario trocado/reconstruido).
 #
 # CAVEAT de politica de versao: este pin e ALPHA; se a intencao era

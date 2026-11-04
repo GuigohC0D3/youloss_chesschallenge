@@ -55,6 +55,41 @@ def has_syzygy(path: Path) -> bool:
     return path.is_dir() and any(path.glob("*.rtbw"))
 
 
+def _sysctl_int(name: str) -> int | None:
+    try:
+        out = subprocess.run(
+            ["sysctl", "-n", name], capture_output=True, text=True, check=True
+        ).stdout
+        return int(out.strip())
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def profile_for(perf: int, eff: int, total_mb: int, free_mb: int) -> tuple[int, int]:
+    """Threads e Hash para Apple Silicon, iguais em qualquer M4/M5 com a mesma RAM.
+
+    Threads: todos os núcleos P + 1/3 dos E. Em 4P+6E dá 6, o perfil medido em
+    docs/evidence/2026-10-06-m4-thermal-thread-profile.md (8 threads perderam 23%
+    de NPS por calor em 20 s; 10 threads rendem menos que 8).
+    Hash: 1/8 da RAM (2 GiB em 16 GB), nunca mais que metade da memória livre.
+    """
+    threads = max(1, perf + eff // 3)
+    hash_mb = max(16, min(total_mb // 8, free_mb // 2))
+    return threads, hash_mb
+
+
+def auto_profile() -> tuple[int | None, int | None]:
+    """Perfil automático no macOS; (None, None) mantém o padrão de runtime_options."""
+    if sys.platform != "darwin":
+        return None, None
+    perf = _sysctl_int("hw.perflevel0.physicalcpu")
+    eff = _sysctl_int("hw.perflevel1.physicalcpu") or 0
+    memsize = _sysctl_int("hw.memsize")
+    if perf is None or memsize is None:
+        return None, None
+    return profile_for(perf, eff, memsize // 2**20, free_memory_mb())
+
+
 def runtime_options(
     syzygy_dir: Path,
     threads: int | None = None,

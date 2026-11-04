@@ -32,7 +32,7 @@ step "python .venv"
 .venv/bin/pip install -q -r requirements.txt
 
 step "fastchess"
-[ -x tools/fastchess ] || bash scripts/build_fastchess.sh
+{ [ -x tools/fastchess ] && [ -f tools/fastchess.build.json ]; } || bash scripts/build_fastchess.sh
 
 step "syzygy"
 if ! bash scripts/verify_assets.sh 2>/dev/null; then

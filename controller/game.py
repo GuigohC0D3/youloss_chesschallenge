@@ -63,6 +63,42 @@ _EMERGENCY_PIECE_VALUE = {
 }
 
 
+def emergency_priority(board: chess.Board, move: chess.Move) -> int:
+    """Cheap one-ply move ordering for the no-search low-time path."""
+    mover = board.piece_at(move.from_square)
+    if mover is None:
+        return -1_000_000
+    score = 0
+    if board.is_attacked_by(not board.turn, move.from_square):
+        score += _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
+    if move.promotion:
+        score += _EMERGENCY_PIECE_VALUE[move.promotion] - _EMERGENCY_PIECE_VALUE[chess.PAWN]
+    if board.is_capture(move):
+        victim = board.piece_at(move.to_square)
+        captured_value = (
+            _EMERGENCY_PIECE_VALUE[victim.piece_type]
+            if victim is not None
+            else _EMERGENCY_PIECE_VALUE[chess.PAWN]
+        )
+        score += 2 * captured_value - _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
+    if board.is_castling(move):
+        score += 40
+
+    gives_check = board.gives_check(move)
+    board.push(move)
+    try:
+        if gives_check:
+            score += 300
+            if board.is_checkmate():
+                score += 1_000_000
+        landed = board.piece_at(move.to_square)
+        if landed is not None and board.is_attacked_by(board.turn, move.to_square):
+            score -= 3 * _EMERGENCY_PIECE_VALUE[landed.piece_type] // 4
+    finally:
+        board.pop()
+    return score
+
+
 class _SearchRefused(Exception):
     """Recusa de dispatch: relógio cruzou o limite após a leitura inicial."""
 
@@ -237,40 +273,7 @@ class Game:
             )
 
     def _emergency_priority(self, move: chess.Move) -> int:
-        """Cheap one-ply move ordering for the no-search low-time path."""
-        board = self.board
-        mover = board.piece_at(move.from_square)
-        if mover is None:
-            return -1_000_000
-        score = 0
-        if board.is_attacked_by(not board.turn, move.from_square):
-            score += _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
-        if move.promotion:
-            score += _EMERGENCY_PIECE_VALUE[move.promotion] - _EMERGENCY_PIECE_VALUE[chess.PAWN]
-        if board.is_capture(move):
-            victim = board.piece_at(move.to_square)
-            captured_value = (
-                _EMERGENCY_PIECE_VALUE[victim.piece_type]
-                if victim is not None
-                else _EMERGENCY_PIECE_VALUE[chess.PAWN]
-            )
-            score += 2 * captured_value - _EMERGENCY_PIECE_VALUE[mover.piece_type] // 3
-        if board.is_castling(move):
-            score += 40
-
-        gives_check = board.gives_check(move)
-        board.push(move)
-        try:
-            if gives_check:
-                score += 300
-                if board.is_checkmate():
-                    score += 1_000_000
-            landed = board.piece_at(move.to_square)
-            if landed is not None and board.is_attacked_by(board.turn, move.to_square):
-                score -= 3 * _EMERGENCY_PIECE_VALUE[landed.piece_type] // 4
-        finally:
-            board.pop()
-        return score
+        return emergency_priority(self.board, move)
 
     def _propose_our_move(self) -> None:
         if self.state.pending_uci is not None:

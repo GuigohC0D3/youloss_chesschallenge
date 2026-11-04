@@ -16,7 +16,7 @@ from controller.clock import ClockFormatError, GameClock, parse_tc
 from controller.engine_client import EngineClient, EngineError, record_incident
 from controller.game import Game
 from controller.game_log import GameLog, log_path
-from controller.runtime import runtime_options
+from controller.runtime import auto_profile, runtime_options
 from controller.state import (
     GameState,
     StateError,
@@ -28,7 +28,7 @@ from controller.state import (
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENGINE = (
-    ROOT / "bin" / ("youloss.exe" if sys.platform == "win32" else "youloss")
+    ROOT / "bin" / ("stockfish.exe" if sys.platform == "win32" else "stockfish")
 )
 DEFAULT_BOOK = ROOT / "assets" / "book.bin"
 DEFAULT_SYZYGY = ROOT / "assets" / "syzygy"
@@ -244,7 +244,12 @@ def main(
         output_fn(f"ERRO: {exc}")
         return 2
 
-    options = runtime_options(args.syzygy, threads=args.threads, hash_mb=args.hash_mb)
+    auto_threads, auto_hash = auto_profile()
+    options = runtime_options(
+        args.syzygy,
+        threads=args.threads if args.threads is not None else auto_threads,
+        hash_mb=args.hash_mb if args.hash_mb is not None else auto_hash,
+    )
     if book_path is None:
         output_fn("AVISO: sem book (--book ou assets/book.bin)")
     if "SyzygyPath" not in options:

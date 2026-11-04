@@ -321,13 +321,16 @@ TIMEOUT_F="$RUNDIR/.timeout"
 
 FC_ARGS=(
   -engine "cmd=$ENGINE" name=tm option.YoulossTM=true
-  -engine "cmd=$SF_ENGINE" name=sf "${SF_OPTIONS[@]}"
-  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB" "option.Move Overhead=$MOVE_OVERHEAD_MS" "${SYZYGY_OPTIONS[@]}"
+  -engine "cmd=$SF_ENGINE" name=sf ${SF_OPTIONS[@]+"${SF_OPTIONS[@]}"}
+  -each "tc=$TC" "option.Threads=$THREADS" "option.Hash=$HASH_MB" "option.Move Overhead=$MOVE_OVERHEAD_MS" ${SYZYGY_OPTIONS[@]+"${SYZYGY_OPTIONS[@]}"}
   -openings "file=$BOOK" format=epd order=random
   -srand "$SRAND"
   -rounds "$ROUNDS" -games "$GAMES_PER_ROUND" -concurrency "$CONC"
   -pgnout "file=$PGN"
 )
+# LIVE_LOG=1: grava a comunicacao UCI em uci.log para o painel ao vivo
+# (testing/live_view.py). So observa; nao altera condicoes da partida.
+[ "${LIVE_LOG:-0}" = 1 ] && FC_ARGS+=(-log "file=$RUNDIR/uci.log" level=warn engine=true)
 SPRT_ARGS=()
 [ "$SPRT" = 0 ] || SPRT_ARGS=(-sprt "elo0=$ELO0" "elo1=$ELO1" alpha=0.05 beta=0.05)
 

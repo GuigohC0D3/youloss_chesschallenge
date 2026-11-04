@@ -45,13 +45,12 @@ def test_manifest_rejects_path_traversal(tmp_path):
     manifest = {
         "manifest_version": "1.0", "package_name": "test", "created_at": "test",
         "architecture": "arm64-darwin", "source_commit": "a" * 40,
-        "git_dirty": True, "candidate_mode": True, "binary_path": "bin/youloss",
-        "binary_hash": "0" * 64, "python_version": "3.12.13",
+        "git_dirty": True, "candidate_mode": True, "binary_path": "bin/stockfish",
+        "binary_hash": "0" * 64, "engine_bench": 2497913,
         "chess_version": "1.11.2", "nnue_id": "net.nnue",
-        "nnue_build_input_hash": "0" * 64,
         "exact_run_settings": {
-            "threads": 7, "hash_mb": 2048, "time_control": "1500+0",
-            "clock_latency_s": 2.0, "profile_status": "MAXIMUM TECHNICAL POWER PROFILE",
+            "threads": "auto", "hash_mb": "auto", "time_control": "1500+0",
+            "clock_latency_s": 2.0,
         },
         "absent_optional_assets": {
             "polyglot_book": "absent", "syzygy_tablebases": "absent",
@@ -68,7 +67,7 @@ def test_manifest_rejects_path_traversal(tmp_path):
 
 
 def test_uci_timeout_is_reported(tmp_path, monkeypatch):
-    binary = tmp_path / "bin" / "youloss"
+    binary = tmp_path / "bin" / "stockfish"
     binary.parent.mkdir()
     binary.write_text("fake")
 

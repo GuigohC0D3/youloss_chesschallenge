@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stockfish — Chess Challenge</title>
+<style>
+  :root {
+    --ink: #1c2023; --muted: #5b6468; --paper: #f4f2ec; --surface: #fff;
+    --line: #cfccc2; --play: #1f6f43; --play-ink: #fff; --alert: #a3321f;
+    --alert-bg: #fbeae6; --focus: #0b5cad;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+  h2 { font-size: .8rem; margin: 0 0 .25rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button { padding: .5rem .75rem; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--surface); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--ink); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); font-weight: 600; }
+  input, select { padding: .5rem; border: 1px solid #8d8b82; border-radius: 4px;
+    background: var(--surface); width: 100%; }
+  label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .25rem; }
+  [hidden] { display: none !important; }
+
+  #setup { max-width: 28rem; margin: 2rem auto; padding: 0 1rem; }
+  #setup .field { margin-bottom: 1rem; }
+  #setup .engine { color: var(--muted); font-size: .875rem; margin-top: 1rem; }
+  .row { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; }
+  .row > .grow { flex: 1 1 8rem; }
+
+  #game { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; gap: 1rem;
+    padding: 1rem; height: 100vh; }
+  #board { min-width: 0; min-height: 0; display: flex; justify-content: center; }
+  #board svg { height: 100%; width: 100%; max-height: calc(100vh - 2rem); display: block; }
+  #panel { display: flex; flex-direction: column; gap: .75rem; min-height: 0; overflow-y: auto; }
+
+  /* Altura fixa: o campo de digitar não muda de lugar quando o lance aparece. */
+  #callout { background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+    padding: .75rem 1rem; min-height: 11.5rem; flex: none; }
+  #callout.play { background: var(--play); color: var(--play-ink); border-color: var(--play); }
+  #callout.play h2 { color: inherit; }
+  #callout .san { font: 700 3.25rem/1.1 var(--mono); }
+  #callout .squares { font: 600 1.25rem var(--mono); }
+  #callout .detail { font-size: .8125rem; margin-top: .25rem; overflow-wrap: anywhere; }
+
+  #entry label { font-size: 1rem; }
+  #entry input { font: 600 1.5rem var(--mono); padding: .5rem .75rem; }
+  #entry .hint { font-size: .8125rem; color: var(--muted); margin: .25rem 0 0; }
+  #error { background: var(--alert-bg); color: var(--alert); border-left: 4px solid var(--alert);
+    padding: .5rem .75rem; font-weight: 600; }
+  #warning { background: #fdf5d8; border-left: 4px solid #a67c00; padding: .5rem .75rem; font-size: .875rem; }
+
+  #clocks { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .clock { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .5rem .75rem; }
+  .clock.running { border: 2px solid var(--ink); padding: calc(.5rem - 1px) calc(.75rem - 1px); }
+  .clock .time { font: 700 1.75rem var(--mono); font-variant-numeric: tabular-nums; }
+  .clock .time.low { color: var(--alert); }
+
+  #moves { font: .875rem/1.5 var(--mono); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 4px; padding: .5rem .75rem; max-height: 9rem; overflow-y: auto; margin: 0; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .5rem .75rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .875rem; }
+  details .row { margin-top: .5rem; }
+  #meta { color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
+  @media (max-width: 860px) {
+    #game { grid-template-columns: 1fr; height: auto; }
+    #board svg { max-height: 90vw; }
+    #panel { overflow: visible; }
+    #callout { min-height: 9.5rem; }
+    #callout .san { font-size: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<main id="setup" hidden>
+  <h1>Nova partida</h1>
+  <form id="start-form">
+    <div class="field">
+      <label for="color">Nossa cor</label>
+      <select id="color"><option value="white">Brancas</option><option value="black">Pretas</option></select>
+    </div>
+    <div class="field">
+      <label for="opponent">Adversário</label>
+      <input id="opponent" autocomplete="off" placeholder="Nome da equipe">
+    </div>
+    <div class="row field">
+      <div class="grow"><label for="game-no">Partida nº</label><input id="game-no" type="number" min="1" value="1"></div>
+      <div class="grow"><label for="tc">Tempo (seg + inc)</label><input id="tc" value="1500+0" autocomplete="off"></div>
+    </div>
+    <button class="primary" type="submit">Iniciar partida</button>
+    <p class="hint">Inicie junto com o relógio físico.</p>
+  </form>
+  <p id="setup-error" role="alert" hidden></p>
+  <div id="resume-box" hidden>
+    <h2>Partida não terminada</h2>
+    <p id="resume-text"></p>
+    <button id="resume" type="button">Retomar</button>
+  </div>
+  <p class="engine" id="setup-engine"></p>
+</main>
+
+<div id="game" hidden>
+  <div id="board" role="img" aria-label="Tabuleiro"></div>
+  <main id="panel">
+    <section id="callout" aria-live="assertive">
+      <h2 id="callout-title"></h2>
+      <div class="san" id="callout-san"></div>
+      <div class="squares" id="callout-squares"></div>
+      <div class="detail" id="callout-detail"></div>
+    </section>
+
+    <form id="entry">
+      <label for="move">Lance do adversário</label>
+      <div class="row">
+        <div class="grow"><input id="move" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e7e5 ou Cf6"></div>
+        <button class="primary" id="send" type="submit">Enviar</button>
+      </div>
+      <p class="hint">Enter envia. Aceita e2e4, e7e8q, Nf3, Cf3, O-O.</p>
+    </form>
+    <div id="error" role="alert" hidden></div>
+    <div id="warning" role="status" hidden></div>
+
+    <section id="clocks" aria-label="Relógios (estimativa; o físico é a referência)">
+      <div class="clock" id="clock-ours"><h2>Nós <span id="our-color"></span></h2><div class="time" id="time-ours"></div></div>
+      <div class="clock" id="clock-theirs"><h2>Adversário</h2><div class="time" id="time-theirs"></div></div>
+    </section>
+
+    <section><h2>Lances</h2><p id="moves">—</p></section>
+
+    <div class="row">
+      <button id="undo" type="button">Desfazer último lance dele</button>
+    </div>
+
+    <details>
+      <summary>Corrigir relógio (pelo físico)</summary>
+      <form id="clock-form" class="row">
+        <div class="grow"><label for="clock-ours-in">Nós mm:ss</label><input id="clock-ours-in" autocomplete="off" placeholder="24:10"></div>
+        <div class="grow"><label for="clock-theirs-in">Adv mm:ss</label><input id="clock-theirs-in" autocomplete="off" placeholder="23:45"></div>
+        <button type="submit">Aplicar</button>
+      </form>
+    </details>
+
+    <details id="finish-box">
+      <summary>Encerrar partida</summary>
+      <div class="row">
+        <button type="button" data-outcome="win">Ganhamos</button>
+        <button type="button" data-outcome="draw">Empate</button>
+        <button type="button" data-outcome="loss">Perdemos</button>
+      </div>
+    </details>
+
+    <button id="new-game" class="primary" type="button" hidden>Nova partida</button>
+    <p id="meta"></p>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let shownVersion = -1;
+let setupRequested = false;
+let current = null;
+
+async function post(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "erro");
+  render(data);
+  return data;
+}
+
+function showError(el, message) {
+  el.textContent = message || "";
+  el.hidden = !message;
+}
+
+function formatClock(ms) {
+  const sign = ms < 0 ? "-" : "";
+  const total = Math.floor(Math.abs(ms) / 1000);
+  const min = Math.floor(total / 60), sec = total % 60;
+  return sign + String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+}
+
+function formatMoves(moves) {
+  let out = "";
+  moves.forEach((san, i) => {
+    if (i % 2 === 0) out += (i / 2 + 1) + ". ";
+    out += san + " ";
+  });
+  return out.trim() || "—";
+}
+
+const SOURCE_LABEL = { engine: "Stockfish", book: "livro", forced: "lance único", fallback: "EMERGÊNCIA" };
+const PROMOTION = { q: "dama", r: "torre", b: "bispo", n: "cavalo" };
+
+function renderCallout(s) {
+  const box = $("callout");
+  let title = "", san = "", squares = "", detail = "", play = false;
+  if (s.phase === "finished") {
+    title = "Partida encerrada";
+    san = s.result;
+    detail = s.reason || "";
+  } else if (s.thinking) {
+    title = "Calculando nosso lance…";
+  } else if (s.our_move) {
+    const m = s.our_move;
+    play = true;
+    title = "Jogue no tabuleiro";
+    san = m.san;
+    squares = m.from + " → " + m.to + (m.promotion ? " (promove a " + PROMOTION[m.promotion] + ")" : "");
+    const parts = [SOURCE_LABEL[m.source] || m.source];
+    if (m.depth) parts.push("prof. " + m.depth);
+    if (m.eval) parts.push("aval. " + m.eval);
+    detail = parts.join(" · ") + (m.pv ? " · " + m.pv : "");
+  } else {
+    title = "Aguardando o adversário";
+  }
+  box.classList.toggle("play", play);
+  $("callout-title").textContent = title;
+  $("callout-san").textContent = san;
+  $("callout-squares").textContent = squares;
+  $("callout-detail").textContent = detail;
+}
+
+function renderClocks(s) {
+  $("time-ours").textContent = formatClock(s.ours_ms);
+  $("time-theirs").textContent = formatClock(s.theirs_ms);
+  $("time-ours").classList.toggle("low", s.ours_ms < 60000);
+  $("clock-ours").classList.toggle("running", s.running === "ours");
+  $("clock-theirs").classList.toggle("running", s.running === "theirs");
+}
+
+function renderSetup(s) {
+  $("setup").hidden = false;
+  $("game").hidden = true;
+  $("resume-box").hidden = !s.resume;
+  if (s.resume) {
+    $("resume-text").textContent = s.resume.opponent + ", partida " + s.resume.game +
+      " (" + s.resume.plies + " meios-lances)";
+  }
+  $("setup-engine").textContent = s.engine + " · " + s.threads + " threads · " + s.hash_mb +
+    " MiB · " + (s.syzygy ? "com" : "sem") + " tablebases";
+}
+
+function renderGame(s, changed) {
+  $("setup").hidden = true;
+  $("game").hidden = false;
+  renderClocks(s);
+  if (!changed) return;
+  $("board").innerHTML = s.board_svg;
+  $("board").setAttribute("aria-label", "Tabuleiro, posição " + s.fen);
+  renderCallout(s);
+  const playing = s.phase === "playing";
+  const canType = playing && !s.thinking && !s.our_turn;
+  $("entry").hidden = !playing;
+  $("move").readOnly = !canType;
+  $("send").disabled = !canType;
+  $("undo").disabled = s.moves.length === 0;
+  $("finish-box").hidden = !playing;
+  $("new-game").hidden = playing;
+  $("our-color").textContent = s.color === "white" ? "(brancas)" : "(pretas)";
+  $("moves").textContent = formatMoves(s.moves);
+  $("moves").scrollTop = $("moves").scrollHeight;
+  let warning = s.warning || "";
+  if (s.claim_draw) warning = (warning + " Empate pode ser reivindicado (repetição ou 50 lances).").trim();
+  showError($("warning"), warning);
+  $("meta").textContent = s.opponent + ", partida " + s.game + " · " + s.engine + " · " +
+    s.threads + " threads · " + s.hash_mb + " MiB · log: " + s.log;
+  if (canType && !document.querySelector("details[open] input:focus")) $("move").focus();
+}
+
+function render(s) {
+  current = s;
+  const changed = s.version !== shownVersion;
+  shownVersion = s.version;
+  if (s.phase === "setup" || setupRequested) renderSetup(s);
+  else renderGame(s, changed);
+}
+
+$("start-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    setupRequested = false;
+    shownVersion = -1;
+    await post("/api/start", {
+      color: $("color").value, opponent: $("opponent").value,
+      game: Number($("game-no").value), tc: $("tc").value,
+    });
+    showError($("setup-error"), "");
+  } catch (e) {
+    setupRequested = current && current.phase !== "setup";
+    showError($("setup-error"), e.message);
+  }
+});
+
+$("resume").addEventListener("click", async () => {
+  try {
+    setupRequested = false;
+    shownVersion = -1;
+    await post("/api/resume");
+  } catch (e) { showError($("setup-error"), e.message); }
+});
+
+$("entry").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = $("move");
+  if (input.readOnly) return;
+  try {
+    await post("/api/move", { move: input.value });
+    input.value = "";
+    showError($("error"), "");
+  } catch (e) {
+    showError($("error"), e.message);
+    input.select();
+  }
+});
+
+$("undo").addEventListener("click", async () => {
+  try {
+    await post("/api/undo");
+    showError($("error"), "");
+  } catch (e) { showError($("error"), e.message); }
+});
+
+$("clock-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await post("/api/clock", { ours: $("clock-ours-in").value, theirs: $("clock-theirs-in").value });
+    $("clock-ours-in").value = "";
+    $("clock-theirs-in").value = "";
+    event.target.closest("details").open = false;
+    showError($("error"), "");
+    $("move").focus();
+  } catch (e) { showError($("error"), e.message); }
+});
+
+document.querySelectorAll("[data-outcome]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    try {
+      await post("/api/finish", { outcome: button.dataset.outcome, reason: "operador" });
+    } catch (e) { showError($("error"), e.message); }
+  });
+});
+
+$("new-game").addEventListener("click", () => {
+  setupRequested = true;
+  render(current);
+  $("opponent").focus();
+});
+
+async function poll() {
+  try {
+    const response = await fetch("/api/state");
+    render(await response.json());
+    if ($("error").dataset.offline) { showError($("error"), ""); delete $("error").dataset.offline; }
+  } catch (e) {
+    $("error").dataset.offline = "1";
+    showError($("error"), "Sem conexão com o programa. Confira o Terminal.");
+  }
+  setTimeout(poll, 400);
+}
+poll();
+</script>
+</body>
+</html>

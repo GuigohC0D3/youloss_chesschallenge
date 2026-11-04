@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Offline Candidate Release Verifier for Youloss.
+"""Verificação independente do pacote offline do Stockfish.
 
-Performs independent offline verification:
-  1. Archive security checks (rejects absolute paths, path traversal, escaping symlinks)
-  2. Safe extraction to isolated temporary directory
-  3. Full manifest verification (hashes every file, validates commit, dirty state, binary hash,
-     Python/chess versions, NNUE ID/hash, exact run settings, and absent optional assets)
-  4. Bundled Python 3.12 execution and offline `import chess` (version 1.11.2)
-  5. Offline engine UCI handshake (uci -> uciok, isready -> readyok, quit)
-  6. Offline launcher help and dry-run preflight check
-  7. Verification that physical-board qualification and organizer acceptance remain open
+  1. Segurança do arquivo e extração isolada
+  2. Manifesto: hash de cada arquivo, binário e configurações
+  3. python3 da máquina + python-chess embutido
+  4. Engine: uci/isready e bench do Stockfish 19
+  5. Interface: partida real pela WebSession, com lance legal do engine
+  6. Lançador: --help, --dry-run, recusa de engine fora do manifesto
+  7. GPL e pendências em aberto
 """
+
 
 from __future__ import annotations
 
@@ -27,6 +26,9 @@ import tarfile
 import tempfile
 import textwrap
 from typing import Any
+
+
+ENGINE_BENCH = 2497913
 
 
 class VerificationError(Exception):
@@ -113,10 +115,9 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
         "candidate_mode",
         "binary_path",
         "binary_hash",
-        "python_version",
         "chess_version",
         "nnue_id",
-        "nnue_build_input_hash",
+        "engine_bench",
         "exact_run_settings",
         "absent_optional_assets",
         "open_items",
@@ -129,19 +130,11 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
 
     # Check exact run settings
     settings = manifest["exact_run_settings"]
-    if settings.get("threads") not in (7, 8):
-        raise VerificationError(f"Expected 7 or 8 threads in settings, got {settings.get('threads')}")
-    if settings.get("hash_mb") not in (512, 2048):
-        raise VerificationError(f"Expected 512 or 2048 MiB hash in settings, got {settings.get('hash_mb')}")
     if settings.get("time_control") != "1500+0":
         raise VerificationError(f"Expected 1500+0 TC, got {settings.get('time_control')}")
     if settings.get("clock_latency_s") != 2.0:
         raise VerificationError(f"Expected 2.0s clock latency, got {settings.get('clock_latency_s')}")
 
-    # Verify candidate labelling
-    profile_status_upper = settings.get("profile_status", "").upper()
-    if "UNQUALIFIED CANDIDATE" not in profile_status_upper and "MAXIMUM TECHNICAL POWER" not in profile_status_upper:
-        raise VerificationError("Run settings must explicitly label profile as UNQUALIFIED CANDIDATE or MAXIMUM TECHNICAL POWER PROFILE")
     # Check open items
     open_items = manifest["open_items"]
     if "OPEN" not in open_items.get("physical_board_qualification", "").upper():
@@ -208,75 +201,49 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
     if sha256_file(bin_file) != manifest["binary_hash"]:
         raise VerificationError("Engine binary hash mismatch with manifest binary_hash")
 
-    # Verify NNUE build input net hash
-    nnue_file = extract_root / "engine" / "src" / manifest["nnue_id"]
-    if not nnue_file.is_file():
-        raise VerificationError(f"Build input NNUE missing at: {nnue_file}")
-    if sha256_file(nnue_file) != manifest["nnue_build_input_hash"]:
-        raise VerificationError("NNUE build input hash mismatch with manifest")
-
     print(f"  -> Manifest validated. Commit {manifest['source_commit'][:10]}, "
           f"dirty={manifest['git_dirty']}, files={len(files_dict)} OK.")
     return manifest
 
 
-def verify_bundled_python(extract_root: Path) -> None:
-    print("[VERIFY 3/7] Verifying bundled Python runtime and chess import offline...")
-    py_bin = extract_root / "python" / "bin" / "python3"
-    if not py_bin.is_file():
-        py_bin = extract_root / "python" / "bin" / "python"
-    if not py_bin.is_file():
-        raise VerificationError(f"Bundled Python binary missing at: {py_bin}")
+def host_python() -> str:
+    python = shutil.which("python3")
+    if python is None:
+        raise VerificationError("python3 not found on this machine")
+    return python
 
-    # Ensure executable permission
-    if not os.access(py_bin, os.X_OK):
-        os.chmod(py_bin, os.stat(py_bin).st_mode | stat.S_IXUSR)
 
-    # Run offline Python check without network
+def package_env(extract_root: Path) -> dict[str, str]:
     env = dict(os.environ)
     env.pop("PYTHONHOME", None)
     env["PYTHONNOUSERSITE"] = "1"
-    env["PYTHONPATH"] = f"{extract_root}:{extract_root}/python/lib/python3.12/site-packages"
+    env["PYTHONPATH"] = f"{extract_root}:{extract_root}/vendor"
+    return env
 
-    cmd = [
-        str(py_bin),
-        "-c",
-        (
-            "import sys, chess; "
-            "print(f'PYTHON_OK:{sys.version.split()[0]}'); "
-            "print(f'CHESS_OK:{chess.__version__}'); "
-            "assert chess.__version__ == '1.11.2', f'Expected 1.11.2, got {chess.__version__}'; "
-            "b = chess.Board(); "
-            "assert b.is_valid(), 'chess.Board invalid'"
-        ),
-    ]
 
+def verify_vendored_python(extract_root: Path) -> None:
+    print("[VERIFY 3/7] Verifying host python3 with vendored chess...")
+    code = (
+        "import sys, chess, chess.svg, controller.web; "
+        "assert sys.version_info >= (3, 9); "
+        "assert 'vendor' in chess.__file__, chess.__file__; "
+        "print('CHESS_OK:' + chess.__version__)"
+    )
     try:
         res = subprocess.run(
-            cmd,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=True,
+            [host_python(), "-c", code], cwd=extract_root, env=package_env(extract_root),
+            capture_output=True, text=True, timeout=20, check=True,
         )
-    except subprocess.CalledProcessError as e:
-        raise VerificationError(
-            f"Bundled Python execution failed (code {e.returncode}):\nStdout: {e.stdout}\nStderr: {e.stderr}"
-        ) from e
-    except Exception as e:
-        raise VerificationError(f"Failed to execute bundled Python: {e}") from e
-
-    out = res.stdout
-    if "CHESS_OK:1.11.2" not in out or "PYTHON_OK:3.12." not in out:
-        raise VerificationError(f"Expected chess 1.11.2, output was:\n{out}")
-
-    print("  -> Bundled Python and chess==1.11.2 verified offline.")
+    except (OSError, subprocess.SubprocessError) as e:
+        raise VerificationError(f"Vendored chess import failed: {e}") from e
+    if "CHESS_OK:1.11.2" not in res.stdout:
+        raise VerificationError(f"Expected chess 1.11.2, output was:\n{res.stdout}")
+    print("  -> python3 and vendored chess==1.11.2 OK.")
 
 
 def verify_engine_uci(extract_root: Path) -> None:
     print("[VERIFY 4/7] Verifying offline engine UCI handshake (uciok/readyok)...")
-    bin_file = extract_root / "bin" / "youloss"
+    bin_file = extract_root / "bin" / "stockfish"
     if not bin_file.is_file():
         raise VerificationError(f"Engine binary missing: {bin_file}")
 
@@ -296,55 +263,62 @@ def verify_engine_uci(extract_root: Path) -> None:
     if "uciok" not in lines or "readyok" not in lines:
         raise VerificationError("Engine did not return both uciok and readyok")
 
-    print("  -> Engine responded to uci and isready with uciok and readyok offline.")
+    try:
+        bench = subprocess.run(
+            [str(bin_file), "bench"], capture_output=True, text=True, timeout=60, check=True,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        raise VerificationError(f"Engine bench failed: {e}") from e
+    if f"Nodes searched  : {ENGINE_BENCH}" not in bench.stdout + bench.stderr:
+        raise VerificationError(f"Engine bench differs from Stockfish 19 ({ENGINE_BENCH})")
+
+    print(f"  -> Engine answered uciok/readyok; bench {ENGINE_BENCH} matches Stockfish 19.")
 
 
 def verify_controller_search(extract_root: Path) -> None:
-    """Exercise packaged controller, dependency, and engine through legal moves."""
-    print("[VERIFY 5/7] Verifying packaged controller searches in both engine modes...")
-    py_bin = extract_root / "python" / "bin" / "python3"
-    engine_bin = extract_root / "bin" / "youloss"
-    env = dict(os.environ)
-    env.pop("PYTHONHOME", None)
-    env["PYTHONNOUSERSITE"] = "1"
-    env["PYTHONPATH"] = f"{extract_root}:{extract_root}/python/lib/python3.12/site-packages"
+    """Plays one real exchange through the packaged web session and engine."""
+    print("[VERIFY 5/7] Verifying packaged interface against the real engine...")
     script = textwrap.dedent("""
+        import pathlib, sys, tempfile, time
         import chess
-        import sys
         from controller.engine_client import EngineClient
+        from controller.web import WebSession
 
-        with EngineClient(sys.argv[1]) as engine:
-            engine.handshake(timeout=5)
-            engine.set_option("Threads", 1)
-            engine.set_option("Hash", 64)
-            for enabled, moves in ((True, []), (False, ["e2e4"])):
-                engine.set_option("YoulossTM", enabled)
-                engine.is_ready(timeout=5)
-                board = chess.Board()
-                for uci in moves:
-                    board.push_uci(uci)
-                position = "position startpos"
-                if moves:
-                    position += " moves " + " ".join(moves)
-                result = engine.search(position, "go depth 2", timeout=10)
-                assert chess.Move.from_uci(result.bestmove) in board.legal_moves
-        print("LEGAL_MOVES_OK")
+        options = {"Threads": 1, "Hash": 16, "Move Overhead": 100}
+        with tempfile.TemporaryDirectory() as logs:
+            session = WebSession(lambda: EngineClient(sys.argv[1]), options, pathlib.Path(logs))
+            print(session.open())
+            session.start_game("black", "verify", 1, "10+0")
+            session.opponent_move("e4")
+            deadline = time.monotonic() + 20
+            while session.thinking and time.monotonic() < deadline:
+                time.sleep(0.02)
+            snap = session.snapshot()
+            assert snap["our_move"]["source"] == "engine", snap["our_move"]
+            assert snap["board_svg"].startswith("<svg")
+            board = chess.Board()
+            board.push_san("e4")
+            board.push_uci(snap["our_move"]["from"] + snap["our_move"]["to"])
+            session.close()
+        print("LEGAL_MOVE_OK")
     """)
     try:
         result = subprocess.run(
-            [str(py_bin), "-c", script, str(engine_bin)], cwd=extract_root,
-            env=env, capture_output=True, text=True, timeout=25, check=True,
+            [host_python(), "-c", script, str(extract_root / "bin" / "stockfish")],
+            cwd=extract_root, env=package_env(extract_root),
+            capture_output=True, text=True, timeout=40, check=True,
         )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise VerificationError(f"Packaged controller search failed: {exc}") from exc
-    if "LEGAL_MOVES_OK" not in result.stdout:
-        raise VerificationError("Packaged controller did not confirm both legal moves")
-    print("  -> Packaged controller returned legal moves in both engine modes.")
+        detail = getattr(exc, "stderr", "") or ""
+        raise VerificationError(f"Packaged interface failed: {exc}\n{detail}") from exc
+    if "LEGAL_MOVE_OK" not in result.stdout or "Stockfish 19" not in result.stdout:
+        raise VerificationError(f"Packaged interface did not confirm a legal move:\n{result.stdout}")
+    print("  -> Interface sent the opponent move and received a legal Stockfish 19 reply.")
 
 
 def verify_launcher(extract_root: Path) -> None:
-    print("[VERIFY 6/7] Verifying offline launcher script (launch_youloss.sh)...")
-    launcher_file = extract_root / "launch_youloss.sh"
+    print("[VERIFY 6/7] Verifying offline launcher script (launch_stockfish.sh)...")
+    launcher_file = extract_root / "launch_stockfish.sh"
     if not launcher_file.is_file():
         raise VerificationError(f"Launcher script missing: {launcher_file}")
 
@@ -365,13 +339,7 @@ def verify_launcher(extract_root: Path) -> None:
         raise VerificationError(f"Launcher --help failed: {e}") from e
 
     help_out = res_help.stdout
-    required_strings = [
-        "1500+0",
-        "--clock-latency",
-        "7",
-        "2048",
-        "Physical-board",
-    ]
+    required_strings = ["--dry-run", "--threads", "--hash", "--clock-latency"]
     for s in required_strings:
         if s not in help_out:
             raise VerificationError(f"Launcher --help missing required string {s!r}")
@@ -383,20 +351,20 @@ def verify_launcher(extract_root: Path) -> None:
             cwd=extract_root,
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=60,
             check=True,
         )
     except Exception as e:
         raise VerificationError(f"Launcher --dry-run failed: {e}") from e
 
-    if "Verification successful" not in res_dry.stdout:
+    if "Verificação concluída" not in res_dry.stdout:
         raise VerificationError(f"Launcher --dry-run did not confirm success:\n{res_dry.stdout}")
 
     override = subprocess.run(
         ["bash", str(launcher_file), "--engine", "/tmp/unmanifested-engine"],
         cwd=extract_root, capture_output=True, text=True, timeout=10,
     )
-    if override.returncode == 0 or "manifested bin/youloss" not in override.stderr:
+    if override.returncode == 0 or "bin/stockfish" not in override.stderr:
         raise VerificationError("Launcher accepted an unmanifested engine override")
 
     print("  -> Launcher help and dry-run preflight passed offline.")
@@ -412,28 +380,11 @@ def verify_gpl_and_open_status(extract_root: Path, manifest: dict[str, Any]) -> 
     if not origin_file.is_file():
         raise VerificationError("Missing engine/ORIGIN.md Stockfish baseline documentation")
 
-    # Explicitly print caveats and open items as required
-    print("================================================================================")
-    print("                    OFFLINE CANDIDATE VERIFICATION REPORT")
-    print("================================================================================")
-    print(" [PASSED CHECKS]")
-    print("   1. Archive security: no path traversal, no absolute paths, no escaping links.")
-    print(f"   2. Manifest integrity: verified all {len(manifest['files'])} bundled file hashes.")
-    print("   3. Pinned Python runtime: Python 3.12 + chess==1.11.2 imported offline.")
-    print("   4. Native Apple Silicon engine: answered uciok and readyok offline.")
-    print("   5. Packaged controller: legal moves in both engine modes.")
-    print("   6. Offline launcher: --help and --dry-run passed with candidate profile.")
-    print("   7. GPL provenance: engine source, ORIGIN.md, Copying.txt, and NNUE net present.")
-    print("")
-    print(" [TOURNAMENT PROFILE - MAXIMUM TECHNICAL POWER]")
-    print("   * Candidate settings: 7 threads / 2048 MiB / 2.0 s latency / official 1500+0.")
-    print("   * LABEL: MAXIMUM TECHNICAL POWER PROFILE (4P + 3E cores on 16 GB Apple Silicon).")
-    print(" [CRITICAL OPEN ITEMS]")
-    print("   * PHYSICAL-BOARD QUALIFICATION: OPEN. Physical clock reading/typing latency")
-    print("     rehearsal and operator reconciliation remain open.")
-    print("   * ORGANIZER ACCEPTANCE: OPEN. Formal rules confirmation of increment (1500+0),")
-    print("     illegal-move handling, Polyglot/Syzygy policy, and brackets remains open.")
-    print("================================================================================")
+    print("=" * 72)
+    print(f"  Manifest verified: {len(manifest['files'])} files. Engine: Stockfish 19, unmodified.")
+    print("  OPEN: physical-board rehearsal; run --dry-run on the M4 itself;")
+    print("        organizer acceptance of unmodified Stockfish and of the rules.")
+    print("=" * 72)
 
 
 def verify_archive(archive_path: Path, keep_extracted: bool = False) -> None:
@@ -441,11 +392,11 @@ def verify_archive(archive_path: Path, keep_extracted: bool = False) -> None:
     if not archive_path.is_file():
         raise VerificationError(f"Candidate archive file not found: {archive_path}")
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="youloss_verify_"))
+    temp_dir = Path(tempfile.mkdtemp(prefix="stockfish_verify_"))
     try:
         safe_extract(archive_path, temp_dir)
         manifest = verify_manifest(temp_dir)
-        verify_bundled_python(temp_dir)
+        verify_vendored_python(temp_dir)
         verify_engine_uci(temp_dir)
         verify_controller_search(temp_dir)
         verify_launcher(temp_dir)
@@ -459,8 +410,8 @@ def verify_archive(archive_path: Path, keep_extracted: bool = False) -> None:
 
 
 def parse_args() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Independently verify Youloss offline release package.")
-    p.add_argument("archive", type=Path, help="Path to youloss release archive (.tar.gz)")
+    p = argparse.ArgumentParser(description="Independently verify the offline Stockfish release package.")
+    p.add_argument("archive", type=Path, help="Path to release archive (.tar.gz)")
     p.add_argument(
         "--keep-extracted",
         action="store_true",
