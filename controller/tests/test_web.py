@@ -298,6 +298,28 @@ def test_resume_restores_board_after_restart(make_session):
     assert len(second.board.move_stack) == 4
 
 
+def test_book_move_is_played_without_search(tmp_path):
+    from controller.tests.polyglot import write_book
+
+    board = chess.Board()
+    board.push_san("e4")
+    book = tmp_path / "book.bin"
+    write_book(book, [(board, "c7c5", 100)])
+    session = WebSession(
+        lambda: EngineClient(sys.executable, args=[str(FAKE), "slow"]),
+        OPTIONS, tmp_path, book_path=book, clock_latency_s=0.0,
+    )
+    session.open()
+    try:
+        session.start_game("black", "Equipe X", 1, "1500+0")
+        session.opponent_move("e4")
+        wait_idle(session, timeout=2)
+        move = session.snapshot()["our_move"]
+        assert move["source"] == "book" and move["san"] == "c5"
+    finally:
+        session.close()
+
+
 def test_snapshot_board_svg_marks_our_move(make_session):
     session = make_session()
     session.start_game("white", "Equipe X", 1, "1500+0")

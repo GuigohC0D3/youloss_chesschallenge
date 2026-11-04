@@ -2,6 +2,7 @@ bin/
 tools/
 assets/*
 !assets/MANIFEST
+!assets/book.bin
 logs/
 .venv/
 __pycache__/

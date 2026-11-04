@@ -1,6 +1,12 @@
 # Youloss Chess Challenge — Handoff
 
-## 2026-11-03 — projeto migrado para Stockfish 19 puro (mais recente)
+## 2026-11-04 — YoulossTM de volta, livro de aberturas (mais recente)
+
+- A pedido do dono, o engine voltou a ser modificado: `sf_19` + YoulossTM. Ver `engine/ORIGIN.md`.
+- `assets/book.bin` entra no pacote, checado por `scripts/vet_opening_book.py`.
+- `testing/tournament_soak.py` simula um dia de torneio.
+
+## 2026-11-03 — projeto migrado para Stockfish 19 puro
 
 - `engine/` agora é o `sf_19` oficial sem modificações (bench 2497913). O YoulossTM saiu;
   a bancada foi para `archive/youloss-tm/`. O SPRT S2 e o restante do plano abaixo foram

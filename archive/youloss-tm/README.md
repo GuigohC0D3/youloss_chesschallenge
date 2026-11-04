@@ -1,8 +1,6 @@
-# Arquivo: gerenciador de tempo YoulossTM
+# Arquivo: bancada de A/B do YoulossTM
 
-Bancada de A/B e screening do gerenciador de tempo autoral, aposentada quando o
-projeto passou a usar o Stockfish 19 sem modificações. Estes scripts dependem da
-opção UCI `YoulossTM`, que não existe no engine atual, e não rodam mais.
-
-O código do gerenciador (`youloss_tm.{h,cpp}`) está no histórico do git, no commit
-`39b0913`. Os resultados estão em `docs/evidence/`.
+Scripts de screening e SPRT usados para medir o gerenciador de tempo. O gerenciador está de
+volta em `engine/src/youloss_tm.*`, mas estes scripts seguem aposentados: dependiam de um
+fluxo que não é mais usado e não foram testados com a versão atual. Os resultados antigos
+estão em `docs/evidence/`.

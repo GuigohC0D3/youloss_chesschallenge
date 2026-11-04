@@ -1,10 +1,11 @@
-# Pacote offline (Stockfish 19 + interface)
+# Pacote offline (Stockfish 19 + YoulossTM + interface)
 
-Substitui a especificação anterior do candidato YoulossTM, que está no histórico do git.
+Substitui a especificação de 2026-10-02, que está no histórico do git.
 
 ## Conteúdo de `dist/stockfish-chess-challenge.tar.gz`
 
-- `bin/stockfish`: Stockfish 19 sem modificações, build PGO `apple-silicon`, NNUE embutida
+- `bin/stockfish`: Stockfish 19 + YoulossTM, build PGO `apple-silicon`, NNUE embutida
+- `assets/book.bin`: livro de aberturas checado pelo engine
 - `controller/`: interface web e CLI, sem testes
 - `vendor/`: python-chess 1.11.2, com licença
 - `engine/`: código-fonte, GPLv3 e `ORIGIN.md`

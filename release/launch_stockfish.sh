@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Inicia a interface da partida: Stockfish 19 + tabuleiro no navegador, sem rede.
+# Inicia a interface da partida: Stockfish 19 + YoulossTM, com tabuleiro no navegador, sem rede.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -61,7 +61,7 @@ dry_run() {
         echo "ERRO: bench $nodes, esperado $EXPECTED_BENCH" >&2
         exit 1
     fi
-    echo "Engine: Stockfish 19, bench $nodes correto"
+    echo "Engine: Stockfish 19 + YoulossTM, bench $nodes correto"
     echo "Verificação concluída: este Mac pode rodar a partida."
 }
 

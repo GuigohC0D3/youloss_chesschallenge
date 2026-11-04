@@ -1,8 +1,9 @@
 # Youloss — III Chess Challenge
 
-Stockfish 19 oficial, sem modificações (`engine/`, ver `engine/ORIGIN.md`), com uma
-interface local escrita pela equipe: tabuleiro no navegador e um campo para digitar
-o lance do adversário. Roda offline em Mac Apple Silicon.
+Stockfish 19 com o gerenciador de tempo autoral YoulossTM (`engine/`, ver
+`engine/ORIGIN.md`), um livro de aberturas e uma interface local escrita pela equipe:
+tabuleiro no navegador e um campo para digitar o lance do adversário. Roda offline em
+Mac Apple Silicon.
 
 ## Jogar
 
@@ -73,16 +74,30 @@ de nenhum chip. Threads e Hash são escolhidos ao iniciar:
 a CLI anterior, com protocolo explícito do relógio físico (`begin`, `press`, `go`,
 `played`). Comandos em `help`.
 
-## Tablebases e livro
+## Livro de aberturas e tablebases
 
-Opcionais e fora do pacote. Se existirem `assets/syzygy/` (até 5 peças) ou
-`assets/book.bin` junto do programa, são usados. O uso depende de confirmação da
-organização: ver `docs/organizer-clarification-draft.md`.
+O Stockfish não lê texto, então livros de regras ou de estratégia não têm como entrar nele:
+as regras já estão no gerador de lances e o conhecimento posicional, na rede neural. O que
+ele usa de fato são estes dois formatos:
+
+- **Livro de aberturas** (`assets/book.bin`, no pacote): repertório da equipe em
+  `scripts/build_opening_book.py`, até 10 meios-lances. `scripts/vet_opening_book.py` testa
+  cada lance com o próprio engine e descarta os ruins. Fora do livro, o engine calcula.
+- **Tablebases de finais** (`assets/syzygy/`, até 5 peças, 939 MB, fora do pacote):
+  usadas automaticamente se a pasta existir junto do programa.
+
+O uso dos dois depende de confirmação da organização: ver
+`docs/organizer-clarification-draft.md`. Para desligar, use `--book` apontando outro arquivo
+ou remova `assets/book.bin`.
+
+## Simular um dia de torneio
+
+`python testing/tournament_soak.py --out logs/soak/run.jsonl` joga partidas seguidas em tempo
+real e grava NPS, profundidade e relógio de cada lance.
 
 ## Histórico
 
-O gerenciador de tempo autoral (YoulossTM) foi retirado. A bancada está em
-`archive/youloss-tm/`, o código no git até o commit `39b0913` e os resultados em
+A bancada antiga de A/B do gerenciador está em `archive/youloss-tm/` e os resultados, em
 `docs/evidence/`.
 
 ## Contribuidores

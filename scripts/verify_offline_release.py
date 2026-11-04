@@ -144,8 +144,8 @@ def verify_manifest(extract_root: Path) -> dict[str, Any]:
 
     # Check absent optional assets
     absent = manifest["absent_optional_assets"]
-    if "absent" not in absent.get("polyglot_book", "").lower():
-        raise VerificationError("Manifest must record polyglot_book as absent")
+    if not (extract_root / absent.get("polyglot_book", "missing")).is_file():
+        raise VerificationError("Manifest must point polyglot_book at the packaged book")
     if "absent" not in absent.get("syzygy_tablebases", "").lower():
         raise VerificationError("Manifest must record syzygy_tablebases as absent")
 
@@ -296,6 +296,9 @@ def verify_controller_search(extract_root: Path) -> None:
             snap = session.snapshot()
             assert snap["our_move"]["source"] == "engine", snap["our_move"]
             assert snap["board_svg"].startswith("<svg")
+            import chess.polyglot
+            with chess.polyglot.open_reader("assets/book.bin") as reader:
+                assert reader.find(chess.Board()).move in chess.Board().legal_moves
             board = chess.Board()
             board.push_san("e4")
             board.push_uci(snap["our_move"]["from"] + snap["our_move"]["to"])
@@ -311,7 +314,7 @@ def verify_controller_search(extract_root: Path) -> None:
     except (OSError, subprocess.SubprocessError) as exc:
         detail = getattr(exc, "stderr", "") or ""
         raise VerificationError(f"Packaged interface failed: {exc}\n{detail}") from exc
-    if "LEGAL_MOVE_OK" not in result.stdout or "Stockfish 19" not in result.stdout:
+    if "LEGAL_MOVE_OK" not in result.stdout or "Stockfish 19 YoulossTM" not in result.stdout:
         raise VerificationError(f"Packaged interface did not confirm a legal move:\n{result.stdout}")
     print("  -> Interface sent the opponent move and received a legal Stockfish 19 reply.")
 
@@ -381,9 +384,9 @@ def verify_gpl_and_open_status(extract_root: Path, manifest: dict[str, Any]) -> 
         raise VerificationError("Missing engine/ORIGIN.md Stockfish baseline documentation")
 
     print("=" * 72)
-    print(f"  Manifest verified: {len(manifest['files'])} files. Engine: Stockfish 19, unmodified.")
+    print(f"  Manifest verified: {len(manifest['files'])} files. Engine: Stockfish 19 + YoulossTM.")
     print("  OPEN: physical-board rehearsal; run --dry-run on the M4 itself;")
-    print("        organizer acceptance of unmodified Stockfish and of the rules.")
+    print("        organizer acceptance of the modification, book and rules.")
     print("=" * 72)
 
 

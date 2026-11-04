@@ -53,7 +53,7 @@ def test_manifest_rejects_path_traversal(tmp_path):
             "clock_latency_s": 2.0,
         },
         "absent_optional_assets": {
-            "polyglot_book": "absent", "syzygy_tablebases": "absent",
+            "polyglot_book": "RELEASE_MANIFEST.json", "syzygy_tablebases": "absent",
         },
         "open_items": {
             "physical_board_qualification": "OPEN", "organizer_acceptance": "OPEN",

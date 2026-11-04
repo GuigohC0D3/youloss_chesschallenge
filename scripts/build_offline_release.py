@@ -3,13 +3,14 @@
 
 Conteúdo:
   1. bin/stockfish (NNUE embutida; ARMv8.2 genérico, roda em M4 e M5)
+     e assets/book.bin (livro de aberturas checado pelo engine)
   2. controller/ sem testes, incluindo a interface web
   3. vendor/chess: python-chess 1.11.2 (usa o python3 da máquina, 3.9+)
   4. engine/: código-fonte do Stockfish, GPLv3 e ORIGIN
   5. launch_stockfish.sh e LEIA-ME.md
   6. RELEASE_MANIFEST.json com o hash de cada arquivo
 
-Fora do pacote: testes, logs, .venv, tablebases e a cópia da NNUE (já vai no binário).
+Fora do pacote: testes, logs, .venv, tablebases (939 MB) e a cópia da NNUE (já vai no binário).
 """
 
 from __future__ import annotations
@@ -264,6 +265,12 @@ def build_release_package(
         # 2. Stage controller
         stage_controller_source(repo_root, staging_base)
 
+        book_src = repo_root / "assets" / "book.bin"
+        if not book_src.is_file():
+            raise RuntimeError(f"Opening book missing: {book_src}")
+        (staging_base / "assets").mkdir()
+        shutil.copy2(book_src, staging_base / "assets" / "book.bin")
+
         # 3. Stage python-chess
         chess_ver = stage_vendored_chess(staging_base)
 
@@ -282,7 +289,8 @@ def build_release_package(
         readme_content = f"""# Stockfish 19 para o III Chess Challenge
 
 Programa offline para Mac Apple Silicon (testado no M5; feito para M4 e M5).
-Engine: Stockfish 19 oficial, sem modificações. Interface: autoria da equipe Youloss.
+Engine: Stockfish 19 com o gerenciador de tempo YoulossTM. Interface, gerenciador de
+tempo e repertório de aberturas: autoria da equipe Youloss.
 
 Gerado em {datetime.now(timezone.utc).date().isoformat()} a partir do commit {commit[:10]} (alterações locais: {is_dirty}).
 
@@ -305,6 +313,9 @@ Se o macOS recusar a execução: `bash launch_stockfish.sh`. É preciso ter pyth
 O relógio da tela é estimativa; o físico é a referência. Use "Corrigir relógio" se
 divergir. "Desfazer" volta para antes do último lance do adversário. Não feche a
 tampa do Mac: mantenha na tomada. Logs ficam em `logs/`.
+
+Tablebases de finais são opcionais (939 MB): copie a pasta `assets/syzygy` para cá, se a
+organização permitir, e elas são usadas automaticamente.
 
 ## Licença
 
@@ -348,7 +359,7 @@ A rede NNUE está embutida em `bin/stockfish` (comando UCI `export_net` a extrai
                 "clock_latency_s": 2.0,
             },
             "absent_optional_assets": {
-                "polyglot_book": "absent",
+                "polyglot_book": "assets/book.bin",
                 "syzygy_tablebases": "absent",
             },
             "open_items": {
@@ -357,7 +368,7 @@ A rede NNUE está embutida em `bin/stockfish` (comando UCI `export_net` a extrai
             },
             "gpl_compliance": {
                 "license": "GPLv3 (see engine/Copying.txt)",
-                "origin": "Stockfish 19, unmodified (see engine/ORIGIN.md)",
+                "origin": "Stockfish 19 + YoulossTM (see engine/ORIGIN.md)",
                 "source_included": True,
             },
             "files": manifest_files,

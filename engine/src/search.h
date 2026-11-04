@@ -311,6 +311,7 @@ class SearchManager: public ISearchManager {
     Value                bestPreviousScore;
     Value                bestPreviousAverageScore;
     bool                 stopOnPonderhit;
+    bool                 youlossTM = false;  // Youloss: youloss_tm ativo nesta busca
 
     const UpdateContext& updates;
 };

@@ -54,6 +54,12 @@ class TimeManagement {
     void clear();
     void advance_nodes_time(i64 nodes);
 
+    // Youloss: substitui optimum/maximum calculados por init() (youloss_tm).
+    void set_bounds(TimePoint optimum, TimePoint maximum) {
+        optimumTime = optimum;
+        maximumTime = maximum;
+    }
+
    private:
     static constexpr TimePoint NoBound = std::numeric_limits<TimePoint>::max() / 2;
 

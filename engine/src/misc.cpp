@@ -140,7 +140,8 @@ class Logger {
 //      Stockfish version
 std::string engine_version_info() {
     std::stringstream ss;
-    ss << "Stockfish " << version << std::setfill('0');
+    // Youloss: versão modificada (GPLv3 5a); ver engine/ORIGIN.md.
+    ss << "Stockfish " << version << " YoulossTM" << std::setfill('0');
 
     if constexpr (version == "dev")
     {

@@ -114,6 +114,7 @@ class OurMove:
     san: str
     source: str
     depth: int = 0
+    nodes: int = 0
     evaluation: str = ""
     pv: str = ""
 
@@ -482,6 +483,7 @@ class WebSession:
         self.our_move = OurMove(uci=move.uci(), san=san, source=source)
         if info is not None:
             self.our_move.depth = info.depth
+            self.our_move.nodes = info.nodes
             self.our_move.evaluation = format_eval(info.score_cp, info.score_mate)
             self.our_move.pv = " ".join(info.pv[:6])
         self.board.push(move)
@@ -555,6 +557,7 @@ class WebSession:
             "promotion": move.uci[4:],
             "source": move.source,
             "depth": move.depth,
+            "nodes": move.nodes,
             "eval": move.evaluation,
             "pv": move.pv,
         }
