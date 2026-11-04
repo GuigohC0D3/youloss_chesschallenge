@@ -87,10 +87,13 @@ def main() -> int:
     parser.add_argument("--opponent-ms", type=int, default=2000)
     parser.add_argument("--opponent-engine", type=Path, default=ROOT / "bin" / "stockfish_sf19")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--stock-tm", action="store_true", help="usa o gerenciador original")
     args = parser.parse_args()
 
     threads, hash_mb = auto_profile()
     options = runtime_options(DEFAULT_SYZYGY, threads=threads, hash_mb=hash_mb)
+    if args.stock_tm:
+        options["YoulossTM"] = "false"
     book = DEFAULT_BOOK if DEFAULT_BOOK.exists() else None
     print(json.dumps({"options": options, "book": str(book)}), flush=True)
 

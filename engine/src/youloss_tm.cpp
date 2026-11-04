@@ -16,6 +16,7 @@ namespace {
 constexpr double  HorizonOpening    = 32.0;   // lances restantes estimados, material completo
 constexpr double  HorizonEndgame    = 25.0;   // idem, só reis e peões
 constexpr double  IncrementShare    = 0.8;
+constexpr double  FloorShare        = 0.25;   // piso do orçamento: 1/4 do relógio / horizonte
 constexpr double  MaxBaseMultiple   = 5.0;    // maximum <= 5 * base
 constexpr double  MaxRemainingShare = 0.25;   // maximum <= 0.25 * remaining
 constexpr int64_t LowTimeThreshold  = 10000;  // abaixo disso, reserva extra
@@ -50,7 +51,12 @@ Budget budget(const BudgetInput& in) {
     const double phase     = std::clamp(in.phase, 0.0, 1.0);
     const double horizon   = HorizonEndgame + (HorizonOpening - HorizonEndgame) * phase;
     const double remaining = double(std::max<int64_t>(in.remaining, 0));
-    const double base      = remaining / horizon + IncrementShare * double(in.increment);
+    // Cada lance futuro custa moveOverhead no relógio (no torneio, digitar e jogar no
+    // tabuleiro). Sem reservar isso, partidas longas sem incremento estouram o tempo.
+    const double reserved  = std::max(0.0, remaining - double(in.moveOverhead) * horizon);
+    // O piso evita lances sem busca nenhuma quando só resta a reserva.
+    const double spendable = std::max(reserved, FloorShare * remaining);
+    const double base      = spendable / horizon + IncrementShare * double(in.increment);
 
     // Abaixo de 10 s guarda até 1 s extra, proporcional ao relógio: uma reserva
     // fixa zeraria o orçamento quando restar pouco mais de 1 s.

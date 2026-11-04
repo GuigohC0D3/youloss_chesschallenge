@@ -8,7 +8,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-MOVE_OVERHEAD_MS = 1500
+# Custo real de cada lance no relógio físico: digitar o dele (2 s) e jogar o nosso (2 s).
+# O gerenciador de tempo reserva esse valor para cada lance futuro.
+MOVE_OVERHEAD_MS = 4000
 HASH_CAP_MB = 16 * 1024
 SYZYGY_PROBE_LIMIT = 5  # Conservative project assumption; organizer permission is unconfirmed.
 

@@ -1,4 +1,4 @@
-# YoulossTM: corte de tempo em empate morto (2026-11-04)
+# YoulossTM: estouro de tempo em partidas longas (2026-11-04)
 
 Registrado antes de medir a correção.
 
@@ -14,19 +14,36 @@ Quando a avaliação atual, a média do lance anterior e a iteração anterior e
 ±2 unidades internas (cerca de 0,01 peão), o tempo-alvo passa a ser
 `optimum × estabilidade × 0,5`, ignorando instabilidade, queda e esforço.
 
+## Segundo problema, visto na mesma partida antes de qualquer medição desta correção
+
+A partida 1 da simulação perdeu: o relógio interno zerou no lance 72 com a posição em +0,00,
+e os lances de emergência levaram a mate. Foram 1213 s pensando e 352 s de descontos do
+operador (4 s por lance). O orçamento do YoulossTM desconta `Move Overhead` uma vez só, e o
+do Stockfish original multiplica pelos lances restantes.
+
+## Segunda correção
+
+- O orçamento reserva `Move Overhead × horizonte`, com piso de 1/4 do relógio para o lance não
+  sair sem busca nenhuma.
+- `MOVE_OVERHEAD_MS` passa de 1500 para 4000, o custo por lance que o controlador já desconta.
+
 ## Medições, nesta ordem, depois que a simulação terminar
 
 1. Triagem: esta branch contra a `main` (`9df551c`), `60+0`, 1 thread, Hash 128 MiB, Move
    Overhead 60 ms, concorrência 4, 30 rodadas pareadas, 60 partidas.
-2. Uma partida 1500+0 pelo `testing/tournament_soak.py`, com as mesmas condições da simulação.
+2. Duas partidas 1500+0 pelo `testing/tournament_soak.py`, uma de cada cor, com esta branch.
+3. Controle: as mesmas duas partidas com `--stock-tm` (gerenciador original), na mesma branch.
 
 ## Regra de decisão
 
 Propor a correção ao dono somente se:
 
 - a triagem não tiver perda no tempo nem crash e der **pelo menos 45%**;
-- a partida 1500+0 não tiver lance acima de 30 s com a avaliação em +0,00 depois de o
-  critério valer por pelo menos 3 lances seguidos.
+- nas partidas 1500+0 não houver lance de emergência nem relógio zerado;
+- nenhum lance em +0,00 passar de 30 s depois de 3 lances seguidos nessa avaliação.
+
+O controle indica se o gerenciador original é mais seguro nessas condições. Duas partidas
+de cada lado não medem força.
 
 A triagem não prova ganho de força. Se a regra falhar, a correção não entra.
 

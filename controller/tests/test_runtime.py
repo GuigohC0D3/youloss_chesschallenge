@@ -13,7 +13,7 @@ SYZYGY = ROOT / "assets" / "syzygy"
 
 def test_defaults_from_machine(tmp_path):
     opts = runtime_options(tmp_path, cpus=8, free_mb=10_000)
-    assert opts == {"Threads": 7, "Hash": 5_000, "Move Overhead": 1500, "SyzygyProbeLimit": 5}
+    assert opts == {"Threads": 7, "Hash": 5_000, "Move Overhead": 4000, "SyzygyProbeLimit": 5}
 
 
 def test_limits(tmp_path):
