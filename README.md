@@ -14,6 +14,8 @@ Com o pacote (`dist/stockfish-chess-challenge.tar.gz`), dentro da pasta extraíd
 ./launch_stockfish.sh             # abre o tabuleiro no navegador
 ```
 
+No M4 (plano B), siga o passo a passo em `docs/rodar-no-m4.md`.
+
 A partir de um clone do repositório:
 
 ```bash
