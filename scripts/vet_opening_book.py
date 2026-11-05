@@ -27,13 +27,17 @@ MIN_SCORE_CP = -50
 
 
 def collect_tree() -> dict[str, tuple[chess.Board, set[chess.Move]]]:
-    """Position FEN -> moves the repertoire plays there, up to the book horizon."""
+    """Position EPD -> moves the repertoire plays there, up to the book horizon.
+
+    EPD drops the move counters, so transpositions that differ only in them share one entry,
+    as they share one Polyglot key.
+    """
     tree: dict[str, tuple[chess.Board, set[chess.Move]]] = {}
     for line in OPENING_LINES:
         board = chess.Board()
         for token in line.split()[:MAX_BOOK_PLY]:
             move = board.parse_san(token)
-            key = board.fen()
+            key = board.epd()
             tree.setdefault(key, (board.copy(stack=False), set()))[1].add(move)
             board.push(move)
     return tree
@@ -55,7 +59,7 @@ def reachable_keep(tree, verdicts) -> dict[str, list[tuple[chess.Move, int]]]:
     seen = set()
     while stack:
         board = stack.pop()
-        key = board.fen()
+        key = board.epd()
         if key in seen or key not in tree:
             continue
         seen.add(key)
@@ -108,7 +112,7 @@ def main() -> int:
     kept = reachable_keep(tree, verdicts)
     entries = []
     for key, moves in kept.items():
-        hash_key = chess.polyglot.zobrist_hash(chess.Board(key))
+        hash_key = chess.polyglot.zobrist_hash(chess.Board(f"{key} 0 1"))
         for move, loss in moves:
             weight = max(1, 100 - loss)
             entries.append((hash_key, encode_polyglot_move(move), weight))
@@ -120,7 +124,7 @@ def main() -> int:
 
     with chess.polyglot.open_reader(args.output) as reader:
         for key, moves in kept.items():
-            board = chess.Board(key)
+            board = chess.Board(f"{key} 0 1")
             found = {entry.move for entry in reader.find_all(board)}
             if found != {move for move, _ in moves}:
                 raise SystemExit(f"book readback mismatch at {key}: {found}")

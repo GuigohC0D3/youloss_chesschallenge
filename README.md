@@ -83,7 +83,7 @@ as regras já estão no gerador de lances e o conhecimento posicional, na rede n
 ele usa de fato são estes dois formatos:
 
 - **Livro de aberturas** (`assets/book.bin`, no pacote): repertório da equipe em
-  `scripts/build_opening_book.py`, até 10 meios-lances. `scripts/vet_opening_book.py` testa
+  `scripts/build_opening_book.py`, até 16 meios-lances, sorteando entre os lances aprovados para variar a abertura. `scripts/vet_opening_book.py` testa
   cada lance com o próprio engine e descarta os ruins. Fora do livro, o engine calcula.
 - **Tablebases de finais** (`assets/syzygy/`, até 5 peças, 939 MB, fora do pacote):
   usadas automaticamente se a pasta existir junto do programa. Com o pacote, copie
