@@ -7,6 +7,9 @@ from pathlib import Path
 import chess
 import pytest
 
+# The harness drives a browser through Playwright, which the tournament setup does not install.
+pytest.importorskip("playwright")
+
 from testing.night.board import (
     BoardError,
     board_from_pieces,
