@@ -27,8 +27,8 @@ static IterationInput neutral() { return {1000.0, 0, 0.0, 100, 100, 100, false, 
 
 static void test_budget_opening() {
     Budget b = budget({900000, 10000, 10, 1.0});  // 15+10, material completo
-    CHECK(b.optimum == 36115);                     // (900000-10*32)/32 + 0.8*10000
-    CHECK(b.maximum == 180575);                    // min(5*base, 0.25*remaining)
+    CHECK(b.optimum == 42605);                     // (900000-10*26)/26 + 0.8*10000
+    CHECK(b.maximum == 213026);                    // min(5*base, 0.25*remaining)
 }
 
 static void test_budget_endgame() {
@@ -46,8 +46,8 @@ static void test_budget_low_time_keeps_reserve() {
 static void test_budget_low_time_reserve_scales_with_clock() {
     // 400 ms no relógio: reserva extra = min(1000, 10% de 400) = 40 ms, não 1 s.
     Budget b = budget({400, 20, 10, 1.0});
-    CHECK(b.maximum == 95);   // 5 * base (disponível: 400 - 10 - 40 = 350)
-    CHECK(b.optimum == 19);   // piso 0.25*400/32 + 0.8*20 = 19.1 -> 19
+    CHECK(b.maximum == 100);   // 0.25 * remaining (disponível: 400 - 10 - 40 = 350)
+    CHECK(b.optimum == 21);   // (400-10*26)/26 + 0.8*20 = 21.4 -> 21
 }
 
 static void test_budget_below_reserve_is_one_ms() {
@@ -65,7 +65,7 @@ static void test_budget_phase_is_clamped() {
 
 static void test_budget_reserves_overhead_for_future_moves() {
     Budget b = budget({1500000, 0, 4000, 1.0});
-    CHECK(b.optimum == 42875);  // (1500000 - 4000*32) / 32
+    CHECK(b.optimum == 53692);  // (1500000 - 4000*26) / 26
 }
 
 static void test_budget_floor_keeps_searching_inside_reserve() {

@@ -18,6 +18,7 @@ Opções repassadas à interface:
   --hash MB            padrão automático: 1/8 da RAM (2048 em 16 GB)
   --clock-latency SEG  desconto por transição do relógio interno (padrão 2.0)
   --port N             padrão 8765
+  --no-ponder          não pensa no tempo do adversário
 HELP
 }
 

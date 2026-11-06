@@ -13,7 +13,7 @@ namespace Stockfish::Youloss {
 namespace {
 
 // Orçamento base: remaining / H(fase) + IncrementShare * inc
-constexpr double  HorizonOpening    = 32.0;   // lances restantes estimados, material completo
+constexpr double  HorizonOpening    = 26.0;   // lances restantes estimados, material completo
 constexpr double  HorizonEndgame    = 25.0;   // idem, só reis e peões
 constexpr double  IncrementShare    = 0.8;
 constexpr double  FloorShare        = 0.25;   // piso do orçamento: 1/4 do relógio / horizonte

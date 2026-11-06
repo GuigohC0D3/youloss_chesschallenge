@@ -319,6 +319,10 @@ class EngineClient:
         """Busca até `bestmove`. Estourado `timeout`, manda `stop` e espera `stop_grace`."""
         self.send(position)
         self.send(go)
+        return self.wait_bestmove(timeout, stop_grace)
+
+    def wait_bestmove(self, timeout: float, stop_grace: float = 2.0) -> SearchInfo:
+        """Lê `info` até `bestmove` da busca em curso (também após `ponderhit`)."""
         info = SearchInfo(bestmove="")
         deadline = time.monotonic() + timeout
         while True:

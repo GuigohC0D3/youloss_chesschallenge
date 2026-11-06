@@ -129,8 +129,12 @@ class WebSession:
         logs_dir: Path,
         book_path: Path | None = None,
         clock_latency_s: float = 2.0,
+        ponder: bool = True,
     ):
         self._factory = engine_factory
+        self.ponder = ponder
+        # Lance do adversário previsto enquanto o engine pensa no tempo dele.
+        self._ponder_move: chess.Move | None = None
         self.options = options
         self.logs_dir = Path(logs_dir)
         self.book_path = book_path
@@ -167,6 +171,8 @@ class WebSession:
         if worker is not None:
             worker.join(STOP_GRACE_S + 1)
         with self._lock:
+            if self.engine is not None:
+                self._cancel_ponder()
             if self.state is not None and not self.state.finished:
                 self._save()
             self._close_log()
@@ -184,6 +190,49 @@ class WebSession:
             self.engine.send("stop")
         except (EngineError, OSError):
             pass
+
+    def _cancel_ponder(self) -> None:
+        """Encerra o ponder e consome o `bestmove` dele, para não confundir a próxima busca."""
+        if self._ponder_move is None:
+            return
+        self._ponder_move = None
+        try:
+            self.engine.send("stop")
+            self.engine.read_until("bestmove", STOP_GRACE_S + 1)
+        except (EngineError, OSError) as exc:
+            if self.log is not None:
+                self.log.note(f"incident ponder stop failure={exc}; restart")
+            try:
+                self.engine.quit()
+            except (EngineError, OSError):
+                pass
+            try:
+                self.open()
+            except (EngineError, OSError):
+                pass  # a próxima busca tenta de novo e, se falhar, sai lance de emergência
+
+    def _start_ponder(self, info: SearchInfo | None) -> None:
+        """Depois do nosso lance, pensa na posição após o lance previsto do adversário."""
+        if not self.ponder or info is None or not info.ponder or self.state.finished:
+            return
+        try:
+            expected = chess.Move.from_uci(info.ponder)
+        except ValueError:
+            return
+        if expected not in self.board.legal_moves:
+            return
+        us = self._us()
+        ours = max(self.clock.remaining(us), 0)
+        theirs = max(self.clock.remaining(not us), 0)
+        wtime, btime = (ours, theirs) if us == chess.WHITE else (theirs, ours)
+        inc = self.clock.inc_ms
+        moves = [m.uci() for m in self.board.move_stack] + [expected.uci()]
+        try:
+            self.engine.send(f"position fen {self.state.start_fen} moves " + " ".join(moves))
+            self.engine.send(f"go ponder wtime {wtime} btime {btime} winc {inc} binc {inc}")
+        except (EngineError, OSError):
+            return
+        self._ponder_move = expected
 
     def _touch(self) -> None:
         self.version += 1
@@ -274,6 +323,7 @@ class WebSession:
                 self._start_thinking()
 
     def _new_engine_game(self) -> None:
+        self._cancel_ponder()
         self.engine.send("ucinewgame")
         self.engine.is_ready(timeout=30)
 
@@ -315,6 +365,7 @@ class WebSession:
         if worker is not None:
             worker.join(STOP_GRACE_S + 1)
         with self._lock:
+            self._cancel_ponder()
             us = self._us()
             popped = []
             if self.board.turn != us:  # último lance foi o nosso
@@ -363,6 +414,8 @@ class WebSession:
             self._generation += 1
             if self.thinking:
                 self._safe_stop()
+            else:
+                self._cancel_ponder()
             self._record_result(result, reason.strip() or "operador")
 
     def _record_result(self, result: str, reason: str) -> None:
@@ -400,14 +453,25 @@ class WebSession:
         try:
             legal = list(board.legal_moves)
             book_move = self.book.pick(board)
+            will_search = len(legal) > 1 and book_move not in legal
+            with self._lock:
+                pondered = self._ponder_move
+                hit = (
+                    pondered is not None and will_search
+                    and bool(board.move_stack) and board.peek() == pondered
+                )
+                if pondered is not None and not hit:
+                    self._cancel_ponder()
+                self._ponder_move = None
             if len(legal) == 1:
                 move, source = legal[0], "forced"
             elif book_move in legal:
                 move, source = book_move, "book"
             else:
-                info = self._search_with_retry(board, legal, generation)
+                info = self._search_with_retry(board, legal, generation, ponderhit=hit)
                 if info is not None:
-                    move, source = chess.Move.from_uci(info.bestmove), "engine"
+                    move = chess.Move.from_uci(info.bestmove)
+                    source = "ponderhit" if hit else "engine"
         except (EngineError, OSError) as exc:
             problem = f"Engine falhou ({exc}). Lance de emergência: confira antes de jogar."
         with self._lock:
@@ -428,9 +492,12 @@ class WebSession:
             self._apply_our_move(move, source, info)
 
     def _search_with_retry(
-        self, board: chess.Board, legal: list[chess.Move], generation: int
+        self, board: chess.Board, legal: list[chess.Move], generation: int,
+        ponderhit: bool = False,
     ) -> SearchInfo | None:
         try:
+            if ponderhit:
+                return self._ponderhit_once(board, legal)
             return self._search_once(board, legal)
         except (EngineError, OSError) as first:
             with self._lock:
@@ -466,6 +533,23 @@ class WebSession:
             timeout,
             stop_grace=STOP_GRACE_S,
         )
+        return self._checked(info, legal)
+
+    def _ponderhit_once(
+        self, board: chess.Board, legal: list[chess.Move]
+    ) -> SearchInfo:
+        """O adversário jogou o lance previsto: a busca do ponder vira a nossa."""
+        ours = self.clock.remaining(board.turn)
+        available = ours - round(STOP_GRACE_S * 1000) - self.latency_ms
+        if ours <= 0 or available < MIN_USEFUL_SEARCH_MS:
+            # Sem tempo para continuar: o que o ponder já achou vale mais que um lance cego.
+            self.engine.send("stop")
+            return self._checked(self.engine.wait_bestmove(STOP_GRACE_S, STOP_GRACE_S), legal)
+        self.engine.send("ponderhit")
+        timeout = min(ours * MAX_THINK_FRACTION, available) / 1000
+        return self._checked(self.engine.wait_bestmove(timeout, STOP_GRACE_S), legal)
+
+    def _checked(self, info: SearchInfo, legal: list[chess.Move]) -> SearchInfo:
         try:
             move = chess.Move.from_uci(info.bestmove)
         except ValueError as exc:
@@ -492,7 +576,8 @@ class WebSession:
         self.log.our_move(move_no, mover, move.uci(), source, spent, info)
         self._save()
         self._touch()
-        self._finish_if_over()
+        if not self._finish_if_over():
+            self._start_ponder(info)
 
     # --- leitura -----------------------------------------------------------
 
@@ -698,6 +783,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--threads", type=int)
     p.add_argument("--hash", type=int, dest="hash_mb", metavar="MB")
     p.add_argument("--clock-latency", type=float, default=2.0)
+    p.add_argument("--no-ponder", action="store_true", help="não pensa no tempo do adversário")
     return p
 
 
@@ -711,7 +797,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     book = args.book or (DEFAULT_BOOK if DEFAULT_BOOK.exists() else None)
     session = WebSession(
-        lambda: EngineClient(args.engine), options, args.logs, book, args.clock_latency
+        lambda: EngineClient(args.engine), options, args.logs, book, args.clock_latency,
+        ponder=not args.no_ponder,
     )
     try:
         name = session.open()

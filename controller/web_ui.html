@@ -202,7 +202,7 @@ function formatMoves(moves) {
   return out.trim() || "—";
 }
 
-const SOURCE_LABEL = { engine: "Stockfish", book: "livro", forced: "lance único", fallback: "EMERGÊNCIA" };
+const SOURCE_LABEL = { engine: "Stockfish", ponderhit: "Stockfish (previsto)", book: "livro", forced: "lance único", fallback: "EMERGÊNCIA" };
 const PROMOTION = { q: "dama", r: "torre", b: "bispo", n: "cavalo" };
 
 function renderCallout(s) {

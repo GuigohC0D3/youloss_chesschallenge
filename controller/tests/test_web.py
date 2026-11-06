@@ -383,3 +383,88 @@ def test_http_invalid_body_does_not_crash_server(server):
     assert status == 400
     status, _ = request(srv, "GET", "/api/state")
     assert status == 200
+
+
+# --- ponder ----------------------------------------------------------------
+
+
+def test_ponder_hit_reuses_search_on_opponent_time(make_session):
+    session = make_session("ponder")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+    assert session.board.peek().uci() == "a2a3"
+    assert session._ponder_move == chess.Move.from_uci("a7a5")
+
+    session.opponent_move("a7a5")
+    wait_idle(session)
+
+    assert session.snapshot()["our_move"]["source"] == "ponderhit"
+    assert session.board.move_stack[-1] in chess.Board(
+        "rnbqkbnr/1ppppppp/8/p7/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 0 2"
+    ).legal_moves
+    assert session._ponder_move is not None  # volta a pensar no tempo dele
+
+
+def test_ponder_miss_stops_and_searches_real_position(make_session):
+    session = make_session("ponder")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+
+    session.opponent_move("e7e5")
+    wait_idle(session)
+
+    move = session.snapshot()["our_move"]
+    assert move["source"] == "engine"
+    board = chess.Board()
+    for m in session.board.move_stack[:-1]:
+        board.push(m)
+    assert session.board.peek() in board.legal_moves
+    log = Path(session.state.log_path).read_text()
+    assert "source=engine" in log and "incident" not in log
+
+
+def test_undo_during_ponder_drains_stale_bestmove(make_session):
+    session = make_session("ponder")
+    session.start_game("black", "Equipe X", 1, "600+0")
+    session.opponent_move("e4")
+    wait_idle(session)
+    assert session._ponder_move is not None
+
+    session.undo()
+    assert session._ponder_move is None
+    session.opponent_move("d4")
+    wait_idle(session)
+
+    assert session.board.move_stack[0].uci() == "d2d4"
+    assert session.board.peek() in chess.Board(
+        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1"
+    ).legal_moves
+
+
+def test_finish_during_ponder_then_new_game_works(make_session):
+    session = make_session("ponder")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+    session.finish("draw", "")
+    assert session._ponder_move is None
+
+    session.start_game("white", "Equipe X", 2, "600+0")
+    wait_idle(session)
+    assert session.board.peek().uci() == "a2a3"
+
+
+def test_ponder_can_be_disabled(tmp_path):
+    session = WebSession(
+        lambda: EngineClient(sys.executable, args=[str(FAKE), "ponder"]),
+        OPTIONS, tmp_path, clock_latency_s=0.0, ponder=False,
+    )
+    session.open()
+    try:
+        session.start_game("white", "Equipe X", 1, "600+0")
+        wait_idle(session)
+        assert session._ponder_move is None
+        session.opponent_move("a7a5")
+        wait_idle(session)
+        assert session.snapshot()["our_move"]["source"] == "engine"
+    finally:
+        session.close()

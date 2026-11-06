@@ -1,5 +1,6 @@
 """Engine UCI falso para testes. Modo via argv[1]:
-ok | hang | crash | spam | slow (só responde ao stop) | deaf (ignora go/stop) | dieongo."""
+ok | hang | crash | spam | slow (só responde ao stop) | deaf (ignora go/stop) | dieongo |
+ponder (sugere lance de ponder; `go ponder` espera ponderhit ou stop)."""
 import sys
 import time
 
@@ -7,6 +8,8 @@ import chess
 
 mode = sys.argv[1] if len(sys.argv) > 1 else "ok"
 board = chess.Board()
+pondering = False
+ponderhits = 0
 
 
 def set_position(tokens: list[str]) -> None:
@@ -26,6 +29,13 @@ def answer_bestmove() -> None:
         print("bestmove (none)")
         return
     print(f"info depth 5 seldepth 7 multipv 1 score cp 12 nodes 1234 nps 1000 time 1 pv {moves[0]}")
+    if mode == "ponder":
+        board.push_uci(moves[0])
+        replies = sorted(m.uci() for m in board.legal_moves)
+        board.pop()
+        if replies:
+            print(f"bestmove {moves[0]} ponder {replies[0]}")
+            return
     print(f"bestmove {moves[0]}")
 
 
@@ -69,9 +79,16 @@ for line in sys.stdin:
         if mode == "stderr_giant_no_newline":
             sys.stderr.write("x" * (1024 * 1024))
             sys.stderr.flush()
-        if mode not in ("slow", "deaf"):
+        if mode == "ponder" and " ponder" in cmd:
+            pondering = True
+        elif mode not in ("slow", "deaf"):
             answer_bestmove()
     elif cmd == "stop" and mode == "slow":
+        answer_bestmove()
+    elif cmd in ("stop", "ponderhit") and mode == "ponder" and pondering:
+        pondering = False
+        ponderhits += cmd == "ponderhit"
+        print(f"info string ponderhits {ponderhits}")
         answer_bestmove()
     elif cmd == "quit":
         break

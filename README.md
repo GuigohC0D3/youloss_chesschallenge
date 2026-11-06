@@ -40,6 +40,11 @@ Com o relógio interno no limite, o programa mostra um lance imediato sem busca 
 aviso. Se o engine cair, ele é reiniciado e a busca repetida; se não voltar, sai um
 lance de emergência com aviso.
 
+Depois do nosso lance, o motor continua pensando no lance que prevê para o adversário
+(ponder). Se ele acertar, a resposta sai mais rápida e mais profunda; a tela mostra
+**Stockfish (previsto)**. Isso mantém a CPU ocupada o tempo todo. Para desligar, use
+`--no-ponder`.
+
 Fechar o programa (Ctrl-C) não perde a partida: ao abrir de novo aparece **Retomar**.
 Logs por lance ficam em `logs/`. O lançador impede o Mac de dormir, mas não com a
 tampa fechada: mantenha aberto e na tomada.
