@@ -9,6 +9,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+.build/
 almostglobal-results.sarif
 .superpowers/
 engine/src/*.o
