@@ -14,7 +14,7 @@ Uso:
   ./launch_stockfish.sh --help
 
 Opções repassadas à interface:
-  --threads N          padrão automático: núcleos P + 1/3 dos E (6 em M4/M5 de 10 núcleos)
+  --threads N          padrão automático: todos os núcleos menos um (9 em M4/M5 de 10 núcleos)
   --hash MB            padrão automático: 1/8 da RAM (2048 em 16 GB)
   --clock-latency SEG  desconto por transição do relógio interno (padrão 2.0)
   --port N             padrão 8765

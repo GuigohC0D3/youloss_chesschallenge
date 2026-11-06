@@ -66,11 +66,11 @@ def test_real_engine_probes_syzygy():
 def test_profile_for_m4_and_m5_ten_core_16gb():
     from controller.runtime import profile_for
 
-    assert profile_for(perf=4, eff=6, total_mb=16384, free_mb=9000) == (6, 2048)
+    assert profile_for(perf=4, eff=6, total_mb=16384, free_mb=9000) == (9, 2048)
 
 
 def test_profile_for_respects_free_memory_and_larger_chips():
     from controller.runtime import profile_for
 
-    assert profile_for(perf=4, eff=6, total_mb=16384, free_mb=1000) == (6, 500)
-    assert profile_for(perf=10, eff=4, total_mb=24576, free_mb=20000) == (11, 3072)
+    assert profile_for(perf=4, eff=6, total_mb=16384, free_mb=1000) == (9, 500)
+    assert profile_for(perf=10, eff=4, total_mb=24576, free_mb=20000) == (13, 3072)

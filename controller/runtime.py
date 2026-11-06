@@ -70,12 +70,12 @@ def _sysctl_int(name: str) -> int | None:
 def profile_for(perf: int, eff: int, total_mb: int, free_mb: int) -> tuple[int, int]:
     """Threads e Hash para Apple Silicon, iguais em qualquer M4/M5 com a mesma RAM.
 
-    Threads: todos os núcleos P + 1/3 dos E. Em 4P+6E dá 6, o perfil medido em
-    docs/evidence/2026-10-06-m4-thermal-thread-profile.md (8 threads perderam 23%
-    de NPS por calor em 20 s; 10 threads rendem menos que 8).
+    Threads: todos os núcleos menos um (para o sistema e a interface). Em 4P+6E dá 9.
+    Partida de 600+0 com 9 threads no M5 em 2026-11-06: sem queda nem lance de
+    emergência, 5,7 a 8,3 Mnps contra 4 a 6 Mnps com 6 threads.
     Hash: 1/8 da RAM (2 GiB em 16 GB), nunca mais que metade da memória livre.
     """
-    threads = max(1, perf + eff // 3)
+    threads = max(1, perf + eff - 1)
     hash_mb = max(16, min(total_mb // 8, free_mb // 2))
     return threads, hash_mb
 

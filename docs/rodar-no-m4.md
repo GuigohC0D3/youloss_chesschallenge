@@ -53,7 +53,7 @@ cd ~/chess
 O resultado esperado termina assim (threads e memória dependem do modelo do M4):
 
 ```text
-Perfil: 6 threads, 2048 MiB
+Perfil: 9 threads, 2048 MiB
 Engine: Stockfish 19 + YoulossTM, bench 2497913 correto
 Verificação concluída: este Mac pode rodar a partida.
 ```
@@ -73,7 +73,7 @@ O navegador abre em `http://127.0.0.1:8765/`. No Terminal, a primeira linha prec
 **`com tablebases`**, por exemplo:
 
 ```text
-Stockfish 19 YoulossTM | 6 threads | 2048 MiB | com tablebases
+Stockfish 19 YoulossTM | 9 threads | 2048 MiB | com tablebases
 ```
 
 Se mostrar `sem tablebases`, refaça o passo 3. Se a porta estiver ocupada, use

@@ -88,9 +88,12 @@ def main() -> int:
     parser.add_argument("--opponent-engine", type=Path, default=ROOT / "bin" / "stockfish_sf19")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--stock-tm", action="store_true", help="usa o gerenciador original")
+    parser.add_argument("--threads", type=int, help="padrão: perfil automático")
+    parser.add_argument("--logs", type=Path, help="pasta dos logs de partida (padrão: temporária)")
     args = parser.parse_args()
 
     threads, hash_mb = auto_profile()
+    threads = args.threads or threads
     options = runtime_options(DEFAULT_SYZYGY, threads=threads, hash_mb=hash_mb)
     if args.stock_tm:
         options["YoulossTM"] = "false"
@@ -106,7 +109,8 @@ def main() -> int:
 
     deadline = time.monotonic() + args.hours * 3600
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as logs, args.out.open("a", encoding="utf-8") as out:
+    with tempfile.TemporaryDirectory() as tmp, args.out.open("a", encoding="utf-8") as out:
+        logs = args.logs or tmp
         session = WebSession(
             lambda: EngineClient(DEFAULT_ENGINE), options, Path(logs), book, clock_latency_s=2.0
         )

@@ -54,8 +54,8 @@ tampa fechada: mantenha aberto e na tomada.
 O binário é único: ARMv8.2 genérico, macOS 11 ou mais novo, sem instruções exclusivas
 de nenhum chip. Threads e Hash são escolhidos ao iniciar:
 
-- Threads: núcleos P + 1/3 dos E. Dá 6 em M4/M5 de 10 núcleos, o perfil medido em
-  `docs/evidence/2026-10-06-m4-thermal-thread-profile.md`.
+- Threads: todos os núcleos menos um, que fica para o sistema e a interface. Dá 9 em
+  M4/M5 de 10 núcleos (partida de 600+0 com 9 threads testada no M5 em 2026-11-06).
 - Hash: 1/8 da RAM (2048 MiB em 16 GB), limitado à metade da memória livre.
 
 `--threads` e `--hash` substituem os valores. O pacote usa o `python3` da máquina
