@@ -1,6 +1,7 @@
 """Engine UCI falso para testes. Modo via argv[1]:
 ok | hang | crash | spam | slow (só responde ao stop) | deaf (ignora go/stop) | dieongo |
-ponder (sugere lance de ponder; `go ponder` espera ponderhit ou stop)."""
+ponder (sugere lance de ponder; `go ponder` espera ponderhit ou stop) |
+jump (mate depois de ...h6, para o aviso de lance digitado)."""
 import sys
 import time
 
@@ -28,7 +29,10 @@ def answer_bestmove() -> None:
     if not moves:
         print("bestmove (none)")
         return
-    print(f"info depth 5 seldepth 7 multipv 1 score cp 12 nodes 1234 nps 1000 time 1 pv {moves[0]}")
+    score = "cp 12"
+    if mode == "jump" and board.move_stack and board.peek().uci() == "h7h6":
+        score = "mate 3"  # simula o adversário (ou a digitação) entregando a partida
+    print(f"info depth 5 seldepth 7 multipv 1 score {score} nodes 1234 nps 1000 time 1 pv {moves[0]}")
     if mode == "ponder":
         board.push_uci(moves[0])
         replies = sorted(m.uci() for m in board.legal_moves)

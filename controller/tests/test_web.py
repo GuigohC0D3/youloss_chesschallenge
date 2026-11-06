@@ -468,3 +468,63 @@ def test_ponder_can_be_disabled(tmp_path):
         assert session.snapshot()["our_move"]["source"] == "engine"
     finally:
         session.close()
+
+
+# --- aviso de lance digitado -------------------------------------------------
+
+
+def test_eval_jump_after_typed_move_asks_to_check_input(make_session):
+    session = make_session("jump")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+    session.opponent_move("a7a6")
+    wait_idle(session)
+    assert session.snapshot()["warning"] == ""
+
+    session.opponent_move("h7h6")
+    wait_idle(session)
+
+    warning = session.snapshot()["warning"]
+    assert "h6" in warning and "Desfazer" in warning and "M3" in warning
+    assert "input check jump" in Path(session.state.log_path).read_text()
+
+
+def test_input_warning_clears_on_next_typed_move_and_on_undo(make_session):
+    session = make_session("jump")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+    session.opponent_move("a7a6")
+    wait_idle(session)
+    session.opponent_move("h7h6")
+    wait_idle(session)
+    assert "Confira" in session.snapshot()["warning"]
+
+    session.undo()
+    assert "saltou" not in session.snapshot()["warning"]
+    wait_idle(session)
+    session.opponent_move("h7h6")  # agora sem avaliação anterior: não avisa de novo
+    wait_idle(session)
+    assert "saltou" not in session.snapshot()["warning"]
+
+
+def test_input_warning_clears_when_next_move_is_typed(make_session):
+    session = make_session("jump")
+    session.start_game("white", "Equipe X", 1, "600+0")
+    wait_idle(session)
+    session.opponent_move("a7a6")
+    wait_idle(session)
+    session.opponent_move("h7h6")
+    wait_idle(session)
+    assert "saltou" in session.snapshot()["warning"]
+
+    session.opponent_move("b7b6")
+    wait_idle(session)
+    assert session.snapshot()["warning"] == ""
+
+
+def test_no_input_warning_without_previous_engine_eval(make_session):
+    session = make_session("jump")
+    session.start_game("black", "Equipe X", 1, "600+0")
+    session.opponent_move("e4")
+    wait_idle(session)
+    assert session.snapshot()["warning"] == ""

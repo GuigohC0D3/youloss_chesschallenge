@@ -48,6 +48,11 @@ from controller.state import (
 
 UI_FILE = Path(__file__).with_name("web_ui.html")
 MAX_BODY_BYTES = 64 * 1024
+# Salto de avaliação (centipeões, nosso ponto de vista) depois de um lance digitado que
+# pede conferência: erro de digitação costuma entregar material ou mate de repente.
+INPUT_CHECK_JUMP_CP = 300
+INPUT_CHECK_DECIDED_CP = 500  # partida já decidida: saltos são normais, sem aviso
+_MATE_CP = 10000
 _COORD_MOVE = re.compile(r"^([a-h][1-8])[-x]?([a-h][1-8])=?([a-z]?)$")
 # Letras em português: Rei, Dama, Torre, Bispo, Cavalo.
 _PT_PIECE = {"R": "K", "D": "Q", "T": "R", "C": "N", "B": "B"}
@@ -151,6 +156,8 @@ class WebSession:
         self.thinking = False
         self.our_move: OurMove | None = None
         self.warning = ""
+        self._input_warning = ""
+        self._last_eval_cp: int | None = None
         self.version = 0
         self._generation = 0
         self._worker: threading.Thread | None = None
@@ -283,6 +290,7 @@ class WebSession:
             self.clock = GameClock(base_ms, inc_ms)
             self.our_move = None
             self.warning = ""
+            self._last_eval_cp = None
             self.log = GameLog(path)
             self.log.header(
                 engine=self.engine_name, color=color, opponent=opponent, game=game,
@@ -314,6 +322,7 @@ class WebSession:
             self.clock.set(chess.BLACK, state.black_ms)
             self.our_move = None
             self.warning = "Partida retomada: confira o tabuleiro e corrija os relógios."
+            self._last_eval_cp = None
             self.log = GameLog(state.log_path)
             self.log.note("resume via web")
             self._new_engine_game()
@@ -345,6 +354,9 @@ class WebSession:
             self._charge_latency(self._us())
             self.log.opponent_move(move_no, mover, move.uci(), spent)
             self.our_move = None
+            if self._input_warning and self.warning == self._input_warning:
+                self.warning = ""
+            self._input_warning = ""
             self._save()
             self._touch()
             if not self._finish_if_over():
@@ -381,6 +393,8 @@ class WebSession:
             self.our_move = None
             self.clock.start(self.board.turn)
             self.warning = "Lance desfeito: confira os relógios com o físico."
+            self._input_warning = ""
+            self._last_eval_cp = None
             self._save()
             self._touch()
             if self.board.turn == us:
@@ -489,7 +503,34 @@ class WebSession:
                         "Confira o físico e corrija."
                     )
             self.warning = problem or self.warning
+            if info is not None and source in ("engine", "ponderhit"):
+                self._check_input_jump(board, info)
             self._apply_our_move(move, source, info)
+
+    def _check_input_jump(self, board: chess.Board, info: SearchInfo) -> None:
+        """Avisa quando a avaliação salta logo após o lance digitado do adversário."""
+        if info.score_mate is not None:
+            now = _MATE_CP if info.score_mate > 0 else -_MATE_CP
+        elif info.score_cp is not None:
+            now = info.score_cp
+        else:
+            return
+        before, self._last_eval_cp = self._last_eval_cp, now
+        if before is None or not board.move_stack or board.turn != self._us():
+            return
+        if abs(before) >= INPUT_CHECK_DECIDED_CP or abs(now - before) < INPUT_CHECK_JUMP_CP:
+            return
+        previous = board.copy()
+        typed = previous.pop()
+        text = format_eval(info.score_cp, info.score_mate)
+        self._input_warning = (
+            f"Avaliação saltou de {before / 100:+.2f} para {text} depois de "
+            f"{previous.san(typed)} do adversário. Confira se foi esse o lance jogado no "
+            "tabuleiro; se não foi, use Desfazer antes de executar o nosso."
+        )
+        self.warning = self._input_warning
+        if self.log is not None:
+            self.log.note(f"input check jump {before}->{now} after {typed.uci()}")
 
     def _search_with_retry(
         self, board: chess.Board, legal: list[chess.Move], generation: int,
