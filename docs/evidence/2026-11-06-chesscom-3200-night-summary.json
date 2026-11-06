@@ -1,0 +1,1321 @@
+{
+  "result": "max_hours",
+  "started_at": "2026-11-06T02:01:52.899535+00:00",
+  "finished_at": "2026-11-06T09:04:04.539563+00:00",
+  "elapsed_s": 25331.3,
+  "games": 131,
+  "moves": 13970,
+  "failures": 0,
+  "game_rows": [
+    {
+      "number": 1,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 113,
+      "wall_s": 201.7,
+      "pgn": "logs/night/night-20261105-230150/games/0001.pgn",
+      "failed": false
+    },
+    {
+      "number": 2,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 96,
+      "wall_s": 160.5,
+      "pgn": "logs/night/night-20261105-230150/games/0002.pgn",
+      "failed": false
+    },
+    {
+      "number": 3,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 79,
+      "wall_s": 134.1,
+      "pgn": "logs/night/night-20261105-230150/games/0003.pgn",
+      "failed": false
+    },
+    {
+      "number": 4,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 92,
+      "wall_s": 155.2,
+      "pgn": "logs/night/night-20261105-230150/games/0004.pgn",
+      "failed": false
+    },
+    {
+      "number": 5,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 57,
+      "wall_s": 95.8,
+      "pgn": "logs/night/night-20261105-230150/games/0005.pgn",
+      "failed": false
+    },
+    {
+      "number": 6,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 114,
+      "wall_s": 194.0,
+      "pgn": "logs/night/night-20261105-230150/games/0006.pgn",
+      "failed": false
+    },
+    {
+      "number": 7,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 71,
+      "wall_s": 120.9,
+      "pgn": "logs/night/night-20261105-230150/games/0007.pgn",
+      "failed": false
+    },
+    {
+      "number": 8,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 112,
+      "wall_s": 189.3,
+      "pgn": "logs/night/night-20261105-230150/games/0008.pgn",
+      "failed": false
+    },
+    {
+      "number": 9,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 75,
+      "wall_s": 126.8,
+      "pgn": "logs/night/night-20261105-230150/games/0009.pgn",
+      "failed": false
+    },
+    {
+      "number": 10,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 108,
+      "wall_s": 185.4,
+      "pgn": "logs/night/night-20261105-230150/games/0010.pgn",
+      "failed": false
+    },
+    {
+      "number": 11,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 131,
+      "wall_s": 224.6,
+      "pgn": "logs/night/night-20261105-230150/games/0011.pgn",
+      "failed": false
+    },
+    {
+      "number": 12,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 88,
+      "wall_s": 150.1,
+      "pgn": "logs/night/night-20261105-230150/games/0012.pgn",
+      "failed": false
+    },
+    {
+      "number": 13,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 129,
+      "wall_s": 222.8,
+      "pgn": "logs/night/night-20261105-230150/games/0013.pgn",
+      "failed": false
+    },
+    {
+      "number": 14,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 84,
+      "wall_s": 140.4,
+      "pgn": "logs/night/night-20261105-230150/games/0014.pgn",
+      "failed": false
+    },
+    {
+      "number": 15,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 81,
+      "wall_s": 138.0,
+      "pgn": "logs/night/night-20261105-230150/games/0015.pgn",
+      "failed": false
+    },
+    {
+      "number": 16,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 86,
+      "wall_s": 145.8,
+      "pgn": "logs/night/night-20261105-230150/games/0016.pgn",
+      "failed": false
+    },
+    {
+      "number": 17,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 89,
+      "wall_s": 150.5,
+      "pgn": "logs/night/night-20261105-230150/games/0017.pgn",
+      "failed": false
+    },
+    {
+      "number": 18,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 108,
+      "wall_s": 185.3,
+      "pgn": "logs/night/night-20261105-230150/games/0018.pgn",
+      "failed": false
+    },
+    {
+      "number": 19,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 117,
+      "wall_s": 197.6,
+      "pgn": "logs/night/night-20261105-230150/games/0019.pgn",
+      "failed": false
+    },
+    {
+      "number": 20,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 124,
+      "wall_s": 212.5,
+      "pgn": "logs/night/night-20261105-230150/games/0020.pgn",
+      "failed": false
+    },
+    {
+      "number": 21,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 151,
+      "wall_s": 259.5,
+      "pgn": "logs/night/night-20261105-230150/games/0021.pgn",
+      "failed": false
+    },
+    {
+      "number": 22,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 126,
+      "wall_s": 212.0,
+      "pgn": "logs/night/night-20261105-230150/games/0022.pgn",
+      "failed": false
+    },
+    {
+      "number": 23,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 109,
+      "wall_s": 186.7,
+      "pgn": "logs/night/night-20261105-230150/games/0023.pgn",
+      "failed": false
+    },
+    {
+      "number": 24,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 120,
+      "wall_s": 206.2,
+      "pgn": "logs/night/night-20261105-230150/games/0024.pgn",
+      "failed": false
+    },
+    {
+      "number": 25,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 99,
+      "wall_s": 169.3,
+      "pgn": "logs/night/night-20261105-230150/games/0025.pgn",
+      "failed": false
+    },
+    {
+      "number": 26,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 76,
+      "wall_s": 130.6,
+      "pgn": "logs/night/night-20261105-230150/games/0026.pgn",
+      "failed": false
+    },
+    {
+      "number": 27,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 131,
+      "wall_s": 225.8,
+      "pgn": "logs/night/night-20261105-230150/games/0027.pgn",
+      "failed": false
+    },
+    {
+      "number": 28,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 112,
+      "wall_s": 191.9,
+      "pgn": "logs/night/night-20261105-230150/games/0028.pgn",
+      "failed": false
+    },
+    {
+      "number": 29,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 131,
+      "wall_s": 223.0,
+      "pgn": "logs/night/night-20261105-230150/games/0029.pgn",
+      "failed": false
+    },
+    {
+      "number": 30,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 94,
+      "wall_s": 158.3,
+      "pgn": "logs/night/night-20261105-230150/games/0030.pgn",
+      "failed": false
+    },
+    {
+      "number": 31,
+      "result": "1/2-1/2",
+      "reason": "draw",
+      "color": "white",
+      "plies": 64,
+      "wall_s": 108.7,
+      "pgn": "logs/night/night-20261105-230150/games/0031.pgn",
+      "failed": false
+    },
+    {
+      "number": 32,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 118,
+      "wall_s": 202.6,
+      "pgn": "logs/night/night-20261105-230150/games/0032.pgn",
+      "failed": false
+    },
+    {
+      "number": 33,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 143,
+      "wall_s": 245.8,
+      "pgn": "logs/night/night-20261105-230150/games/0033.pgn",
+      "failed": false
+    },
+    {
+      "number": 34,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 116,
+      "wall_s": 199.4,
+      "pgn": "logs/night/night-20261105-230150/games/0034.pgn",
+      "failed": false
+    },
+    {
+      "number": 35,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 59,
+      "wall_s": 99.4,
+      "pgn": "logs/night/night-20261105-230150/games/0035.pgn",
+      "failed": false
+    },
+    {
+      "number": 36,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 106,
+      "wall_s": 179.7,
+      "pgn": "logs/night/night-20261105-230150/games/0036.pgn",
+      "failed": false
+    },
+    {
+      "number": 37,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 103,
+      "wall_s": 179.4,
+      "pgn": "logs/night/night-20261105-230150/games/0037.pgn",
+      "failed": false
+    },
+    {
+      "number": 38,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 110,
+      "wall_s": 186.0,
+      "pgn": "logs/night/night-20261105-230150/games/0038.pgn",
+      "failed": false
+    },
+    {
+      "number": 39,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 131,
+      "wall_s": 222.8,
+      "pgn": "logs/night/night-20261105-230150/games/0039.pgn",
+      "failed": false
+    },
+    {
+      "number": 40,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 82,
+      "wall_s": 140.1,
+      "pgn": "logs/night/night-20261105-230150/games/0040.pgn",
+      "failed": false
+    },
+    {
+      "number": 41,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 135,
+      "wall_s": 233.1,
+      "pgn": "logs/night/night-20261105-230150/games/0041.pgn",
+      "failed": false
+    },
+    {
+      "number": 42,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 90,
+      "wall_s": 154.1,
+      "pgn": "logs/night/night-20261105-230150/games/0042.pgn",
+      "failed": false
+    },
+    {
+      "number": 43,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 109,
+      "wall_s": 188.5,
+      "pgn": "logs/night/night-20261105-230150/games/0043.pgn",
+      "failed": false
+    },
+    {
+      "number": 44,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 128,
+      "wall_s": 219.6,
+      "pgn": "logs/night/night-20261105-230150/games/0044.pgn",
+      "failed": false
+    },
+    {
+      "number": 45,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 59,
+      "wall_s": 99.9,
+      "pgn": "logs/night/night-20261105-230150/games/0045.pgn",
+      "failed": false
+    },
+    {
+      "number": 46,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 68,
+      "wall_s": 118.1,
+      "pgn": "logs/night/night-20261105-230150/games/0046.pgn",
+      "failed": false
+    },
+    {
+      "number": 47,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 111,
+      "wall_s": 191.7,
+      "pgn": "logs/night/night-20261105-230150/games/0047.pgn",
+      "failed": false
+    },
+    {
+      "number": 48,
+      "result": "1/2-1/2",
+      "reason": "draw",
+      "color": "black",
+      "plies": 87,
+      "wall_s": 148.7,
+      "pgn": "logs/night/night-20261105-230150/games/0048.pgn",
+      "failed": false
+    },
+    {
+      "number": 49,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 115,
+      "wall_s": 201.6,
+      "pgn": "logs/night/night-20261105-230150/games/0049.pgn",
+      "failed": false
+    },
+    {
+      "number": 50,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 100,
+      "wall_s": 172.6,
+      "pgn": "logs/night/night-20261105-230150/games/0050.pgn",
+      "failed": false
+    },
+    {
+      "number": 51,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 87,
+      "wall_s": 148.4,
+      "pgn": "logs/night/night-20261105-230150/games/0051.pgn",
+      "failed": false
+    },
+    {
+      "number": 52,
+      "result": "1/2-1/2",
+      "reason": "draw",
+      "color": "black",
+      "plies": 79,
+      "wall_s": 136.9,
+      "pgn": "logs/night/night-20261105-230150/games/0052.pgn",
+      "failed": false
+    },
+    {
+      "number": 53,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 129,
+      "wall_s": 221.7,
+      "pgn": "logs/night/night-20261105-230150/games/0053.pgn",
+      "failed": false
+    },
+    {
+      "number": 54,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 116,
+      "wall_s": 197.9,
+      "pgn": "logs/night/night-20261105-230150/games/0054.pgn",
+      "failed": false
+    },
+    {
+      "number": 55,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 157,
+      "wall_s": 281.5,
+      "pgn": "logs/night/night-20261105-230150/games/0055.pgn",
+      "failed": false
+    },
+    {
+      "number": 56,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 82,
+      "wall_s": 138.4,
+      "pgn": "logs/night/night-20261105-230150/games/0056.pgn",
+      "failed": false
+    },
+    {
+      "number": 57,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 77,
+      "wall_s": 132.8,
+      "pgn": "logs/night/night-20261105-230150/games/0057.pgn",
+      "failed": false
+    },
+    {
+      "number": 58,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 148,
+      "wall_s": 256.5,
+      "pgn": "logs/night/night-20261105-230150/games/0058.pgn",
+      "failed": false
+    },
+    {
+      "number": 59,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 125,
+      "wall_s": 215.0,
+      "pgn": "logs/night/night-20261105-230150/games/0059.pgn",
+      "failed": false
+    },
+    {
+      "number": 60,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 128,
+      "wall_s": 222.9,
+      "pgn": "logs/night/night-20261105-230150/games/0060.pgn",
+      "failed": false
+    },
+    {
+      "number": 61,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 95,
+      "wall_s": 167.2,
+      "pgn": "logs/night/night-20261105-230150/games/0061.pgn",
+      "failed": false
+    },
+    {
+      "number": 62,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 138,
+      "wall_s": 237.7,
+      "pgn": "logs/night/night-20261105-230150/games/0062.pgn",
+      "failed": false
+    },
+    {
+      "number": 63,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 137,
+      "wall_s": 243.5,
+      "pgn": "logs/night/night-20261105-230150/games/0063.pgn",
+      "failed": false
+    },
+    {
+      "number": 64,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 102,
+      "wall_s": 175.8,
+      "pgn": "logs/night/night-20261105-230150/games/0064.pgn",
+      "failed": false
+    },
+    {
+      "number": 65,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 65,
+      "wall_s": 109.4,
+      "pgn": "logs/night/night-20261105-230150/games/0065.pgn",
+      "failed": false
+    },
+    {
+      "number": 66,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 80,
+      "wall_s": 134.6,
+      "pgn": "logs/night/night-20261105-230150/games/0066.pgn",
+      "failed": false
+    },
+    {
+      "number": 67,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 99,
+      "wall_s": 170.2,
+      "pgn": "logs/night/night-20261105-230150/games/0067.pgn",
+      "failed": false
+    },
+    {
+      "number": 68,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 120,
+      "wall_s": 205.0,
+      "pgn": "logs/night/night-20261105-230150/games/0068.pgn",
+      "failed": false
+    },
+    {
+      "number": 69,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 133,
+      "wall_s": 233.9,
+      "pgn": "logs/night/night-20261105-230150/games/0069.pgn",
+      "failed": false
+    },
+    {
+      "number": 70,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 58,
+      "wall_s": 102.9,
+      "pgn": "logs/night/night-20261105-230150/games/0070.pgn",
+      "failed": false
+    },
+    {
+      "number": 71,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 81,
+      "wall_s": 137.7,
+      "pgn": "logs/night/night-20261105-230150/games/0071.pgn",
+      "failed": false
+    },
+    {
+      "number": 72,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 82,
+      "wall_s": 140.9,
+      "pgn": "logs/night/night-20261105-230150/games/0072.pgn",
+      "failed": false
+    },
+    {
+      "number": 73,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 119,
+      "wall_s": 206.0,
+      "pgn": "logs/night/night-20261105-230150/games/0073.pgn",
+      "failed": false
+    },
+    {
+      "number": 74,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 142,
+      "wall_s": 247.1,
+      "pgn": "logs/night/night-20261105-230150/games/0074.pgn",
+      "failed": false
+    },
+    {
+      "number": 75,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 101,
+      "wall_s": 173.8,
+      "pgn": "logs/night/night-20261105-230150/games/0075.pgn",
+      "failed": false
+    },
+    {
+      "number": 76,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 136,
+      "wall_s": 242.2,
+      "pgn": "logs/night/night-20261105-230150/games/0076.pgn",
+      "failed": false
+    },
+    {
+      "number": 77,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 85,
+      "wall_s": 148.6,
+      "pgn": "logs/night/night-20261105-230150/games/0077.pgn",
+      "failed": false
+    },
+    {
+      "number": 78,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 118,
+      "wall_s": 198.9,
+      "pgn": "logs/night/night-20261105-230150/games/0078.pgn",
+      "failed": false
+    },
+    {
+      "number": 79,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 115,
+      "wall_s": 197.5,
+      "pgn": "logs/night/night-20261105-230150/games/0079.pgn",
+      "failed": false
+    },
+    {
+      "number": 80,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 110,
+      "wall_s": 187.6,
+      "pgn": "logs/night/night-20261105-230150/games/0080.pgn",
+      "failed": false
+    },
+    {
+      "number": 81,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 79,
+      "wall_s": 136.5,
+      "pgn": "logs/night/night-20261105-230150/games/0081.pgn",
+      "failed": false
+    },
+    {
+      "number": 82,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 166,
+      "wall_s": 287.7,
+      "pgn": "logs/night/night-20261105-230150/games/0082.pgn",
+      "failed": false
+    },
+    {
+      "number": 83,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 111,
+      "wall_s": 189.7,
+      "pgn": "logs/night/night-20261105-230150/games/0083.pgn",
+      "failed": false
+    },
+    {
+      "number": 84,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 130,
+      "wall_s": 222.0,
+      "pgn": "logs/night/night-20261105-230150/games/0084.pgn",
+      "failed": false
+    },
+    {
+      "number": 85,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 131,
+      "wall_s": 224.3,
+      "pgn": "logs/night/night-20261105-230150/games/0085.pgn",
+      "failed": false
+    },
+    {
+      "number": 86,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 110,
+      "wall_s": 185.5,
+      "pgn": "logs/night/night-20261105-230150/games/0086.pgn",
+      "failed": false
+    },
+    {
+      "number": 87,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 117,
+      "wall_s": 200.5,
+      "pgn": "logs/night/night-20261105-230150/games/0087.pgn",
+      "failed": false
+    },
+    {
+      "number": 88,
+      "result": "1/2-1/2",
+      "reason": "draw",
+      "color": "black",
+      "plies": 45,
+      "wall_s": 75.7,
+      "pgn": "logs/night/night-20261105-230150/games/0088.pgn",
+      "failed": false
+    },
+    {
+      "number": 89,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 121,
+      "wall_s": 219.3,
+      "pgn": "logs/night/night-20261105-230150/games/0089.pgn",
+      "failed": false
+    },
+    {
+      "number": 90,
+      "result": "1/2-1/2",
+      "reason": "stalemate",
+      "color": "black",
+      "plies": 110,
+      "wall_s": 192.0,
+      "pgn": "logs/night/night-20261105-230150/games/0090.pgn",
+      "failed": false
+    },
+    {
+      "number": 91,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 79,
+      "wall_s": 135.2,
+      "pgn": "logs/night/night-20261105-230150/games/0091.pgn",
+      "failed": false
+    },
+    {
+      "number": 92,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 112,
+      "wall_s": 192.0,
+      "pgn": "logs/night/night-20261105-230150/games/0092.pgn",
+      "failed": false
+    },
+    {
+      "number": 93,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 135,
+      "wall_s": 231.5,
+      "pgn": "logs/night/night-20261105-230150/games/0093.pgn",
+      "failed": false
+    },
+    {
+      "number": 94,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 154,
+      "wall_s": 266.6,
+      "pgn": "logs/night/night-20261105-230150/games/0094.pgn",
+      "failed": false
+    },
+    {
+      "number": 95,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 85,
+      "wall_s": 145.3,
+      "pgn": "logs/night/night-20261105-230150/games/0095.pgn",
+      "failed": false
+    },
+    {
+      "number": 96,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 66,
+      "wall_s": 110.7,
+      "pgn": "logs/night/night-20261105-230150/games/0096.pgn",
+      "failed": false
+    },
+    {
+      "number": 97,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 93,
+      "wall_s": 156.8,
+      "pgn": "logs/night/night-20261105-230150/games/0097.pgn",
+      "failed": false
+    },
+    {
+      "number": 98,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 90,
+      "wall_s": 154.3,
+      "pgn": "logs/night/night-20261105-230150/games/0098.pgn",
+      "failed": false
+    },
+    {
+      "number": 99,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 143,
+      "wall_s": 245.1,
+      "pgn": "logs/night/night-20261105-230150/games/0099.pgn",
+      "failed": false
+    },
+    {
+      "number": 100,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 116,
+      "wall_s": 197.6,
+      "pgn": "logs/night/night-20261105-230150/games/0100.pgn",
+      "failed": false
+    },
+    {
+      "number": 101,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 103,
+      "wall_s": 172.7,
+      "pgn": "logs/night/night-20261105-230150/games/0101.pgn",
+      "failed": false
+    },
+    {
+      "number": 102,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 132,
+      "wall_s": 225.5,
+      "pgn": "logs/night/night-20261105-230150/games/0102.pgn",
+      "failed": false
+    },
+    {
+      "number": 103,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 63,
+      "wall_s": 106.7,
+      "pgn": "logs/night/night-20261105-230150/games/0103.pgn",
+      "failed": false
+    },
+    {
+      "number": 104,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 146,
+      "wall_s": 254.0,
+      "pgn": "logs/night/night-20261105-230150/games/0104.pgn",
+      "failed": false
+    },
+    {
+      "number": 105,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 119,
+      "wall_s": 200.2,
+      "pgn": "logs/night/night-20261105-230150/games/0105.pgn",
+      "failed": false
+    },
+    {
+      "number": 106,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 144,
+      "wall_s": 244.8,
+      "pgn": "logs/night/night-20261105-230150/games/0106.pgn",
+      "failed": false
+    },
+    {
+      "number": 107,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 51,
+      "wall_s": 87.5,
+      "pgn": "logs/night/night-20261105-230150/games/0107.pgn",
+      "failed": false
+    },
+    {
+      "number": 108,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 134,
+      "wall_s": 234.6,
+      "pgn": "logs/night/night-20261105-230150/games/0108.pgn",
+      "failed": false
+    },
+    {
+      "number": 109,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 67,
+      "wall_s": 115.7,
+      "pgn": "logs/night/night-20261105-230150/games/0109.pgn",
+      "failed": false
+    },
+    {
+      "number": 110,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 128,
+      "wall_s": 217.4,
+      "pgn": "logs/night/night-20261105-230150/games/0110.pgn",
+      "failed": false
+    },
+    {
+      "number": 111,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 121,
+      "wall_s": 208.4,
+      "pgn": "logs/night/night-20261105-230150/games/0111.pgn",
+      "failed": false
+    },
+    {
+      "number": 112,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 84,
+      "wall_s": 141.1,
+      "pgn": "logs/night/night-20261105-230150/games/0112.pgn",
+      "failed": false
+    },
+    {
+      "number": 113,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 71,
+      "wall_s": 122.4,
+      "pgn": "logs/night/night-20261105-230150/games/0113.pgn",
+      "failed": false
+    },
+    {
+      "number": 114,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 110,
+      "wall_s": 186.8,
+      "pgn": "logs/night/night-20261105-230150/games/0114.pgn",
+      "failed": false
+    },
+    {
+      "number": 115,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 95,
+      "wall_s": 162.6,
+      "pgn": "logs/night/night-20261105-230150/games/0115.pgn",
+      "failed": false
+    },
+    {
+      "number": 116,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 116,
+      "wall_s": 196.0,
+      "pgn": "logs/night/night-20261105-230150/games/0116.pgn",
+      "failed": false
+    },
+    {
+      "number": 117,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 149,
+      "wall_s": 255.9,
+      "pgn": "logs/night/night-20261105-230150/games/0117.pgn",
+      "failed": false
+    },
+    {
+      "number": 118,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 102,
+      "wall_s": 174.9,
+      "pgn": "logs/night/night-20261105-230150/games/0118.pgn",
+      "failed": false
+    },
+    {
+      "number": 119,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 81,
+      "wall_s": 138.6,
+      "pgn": "logs/night/night-20261105-230150/games/0119.pgn",
+      "failed": false
+    },
+    {
+      "number": 120,
+      "result": "1/2-1/2",
+      "reason": "stalemate",
+      "color": "black",
+      "plies": 108,
+      "wall_s": 180.1,
+      "pgn": "logs/night/night-20261105-230150/games/0120.pgn",
+      "failed": false
+    },
+    {
+      "number": 121,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 127,
+      "wall_s": 217.8,
+      "pgn": "logs/night/night-20261105-230150/games/0121.pgn",
+      "failed": false
+    },
+    {
+      "number": 122,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 122,
+      "wall_s": 210.2,
+      "pgn": "logs/night/night-20261105-230150/games/0122.pgn",
+      "failed": false
+    },
+    {
+      "number": 123,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 73,
+      "wall_s": 126.6,
+      "pgn": "logs/night/night-20261105-230150/games/0123.pgn",
+      "failed": false
+    },
+    {
+      "number": 124,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 156,
+      "wall_s": 266.3,
+      "pgn": "logs/night/night-20261105-230150/games/0124.pgn",
+      "failed": false
+    },
+    {
+      "number": 125,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 107,
+      "wall_s": 179.7,
+      "pgn": "logs/night/night-20261105-230150/games/0125.pgn",
+      "failed": false
+    },
+    {
+      "number": 126,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 124,
+      "wall_s": 212.3,
+      "pgn": "logs/night/night-20261105-230150/games/0126.pgn",
+      "failed": false
+    },
+    {
+      "number": 127,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 135,
+      "wall_s": 228.6,
+      "pgn": "logs/night/night-20261105-230150/games/0127.pgn",
+      "failed": false
+    },
+    {
+      "number": 128,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 114,
+      "wall_s": 193.3,
+      "pgn": "logs/night/night-20261105-230150/games/0128.pgn",
+      "failed": false
+    },
+    {
+      "number": 129,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 95,
+      "wall_s": 163.1,
+      "pgn": "logs/night/night-20261105-230150/games/0129.pgn",
+      "failed": false
+    },
+    {
+      "number": 130,
+      "result": "0-1",
+      "reason": "checkmate",
+      "color": "black",
+      "plies": 130,
+      "wall_s": 229.6,
+      "pgn": "logs/night/night-20261105-230150/games/0130.pgn",
+      "failed": false
+    },
+    {
+      "number": 131,
+      "result": "1-0",
+      "reason": "checkmate",
+      "color": "white",
+      "plies": 93,
+      "wall_s": 159.2,
+      "pgn": "logs/night/night-20261105-230150/games/0131.pgn",
+      "failed": false
+    }
+  ]
+}

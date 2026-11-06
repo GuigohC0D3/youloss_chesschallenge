@@ -1,0 +1,26 @@
+{
+  "games": 131,
+  "moves": 13970,
+  "failures": 0,
+  "elapsed_s": 25331.3,
+  "result": "max_hours",
+  "wins": 125,
+  "draws": 6,
+  "losses": 0,
+  "score_pct": 97.71,
+  "by_color": {
+    "white": {
+      "win": 65,
+      "draw": 1
+    },
+    "black": {
+      "win": 60,
+      "draw": 5
+    }
+  },
+  "avg_wall_s": 183.1,
+  "avg_plies": 106.7,
+  "games_per_hour": 18.62,
+  "pgns": 131,
+  "run_dir": "logs/night/night-20261105-230150"
+}

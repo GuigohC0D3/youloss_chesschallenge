@@ -1,0 +1,31 @@
+{
+  "spec": {
+    "bot": "Maximum",
+    "tc": "3+2",
+    "color_mode": "alternate",
+    "max_games": 0,
+    "max_hours": 7.0,
+    "attach": false,
+    "dry_run": false,
+    "engine": "/Users/seunome/Code/youloss_chesschallenge/bin/stockfish",
+    "threads": 6,
+    "hash_mb": 512,
+    "move_overhead_ms": 40,
+    "max_move_ms": 800,
+    "book": "/Users/seunome/Code/youloss_chesschallenge/assets/book.bin",
+    "syzygy": "/Users/seunome/Code/youloss_chesschallenge/assets/syzygy",
+    "profile_dir": "/Users/seunome/.local/share/youloss-night/chrome",
+    "cdp_port": 9222,
+    "poll_ms": 100,
+    "move_timeout_s": 45.0,
+    "click_timeout_s": 8.0,
+    "login_timeout_s": 900.0,
+    "max_consecutive_failures": 8,
+    "max_attempts_per_game": 3,
+    "pause_between_games_s": 0.5,
+    "out_dir": "logs/night/night-20261105-230150"
+  },
+  "started_at": "2026-11-06T02:01:52.899535+00:00",
+  "host": "MacBook-Air-5.local",
+  "python": "3.15.2"
+}
