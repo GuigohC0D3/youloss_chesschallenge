@@ -26,7 +26,7 @@ import chess
 import chess.svg
 
 from controller.book import OpeningBook
-from controller.clock import ClockFormatError, GameClock, parse_mmss, parse_tc
+from controller.clock import ClockFormatError, GameClock, format_mmss, parse_mmss, parse_tc
 from controller.engine_client import EngineClient, EngineError, SearchInfo
 from controller.game import (
     MAX_THINK_FRACTION,
@@ -262,7 +262,11 @@ class WebSession:
 
     # --- ações -------------------------------------------------------------
 
-    def start_game(self, color: str, opponent: str, game: int, tc: str) -> None:
+    def start_game(
+        self, color: str, opponent: str, game: int, tc: str, ours: str = "", theirs: str = "",
+    ) -> None:
+        """`ours`/`theirs` (mm:ss): relógio físico no início, quando a partida continua com o
+        tempo que sobrou de outra (ex.: reinício após empate). Vazios = tempo cheio."""
         if color not in ("white", "black"):
             raise ActionError("escolha brancas ou pretas")
         opponent = opponent.strip() or "adversario"
@@ -270,6 +274,14 @@ class WebSession:
             base_ms, inc_ms = parse_tc(tc)
         except ClockFormatError as exc:
             raise ActionError(f"tempo inválido: {exc}") from exc
+        start_clock: tuple[int, int] | None = None
+        if ours.strip() or theirs.strip():
+            try:
+                start_clock = (parse_mmss(ours.strip()), parse_mmss(theirs.strip()))
+            except ClockFormatError as exc:
+                raise ActionError(f"relógio inicial: use mm:ss nos dois campos ({exc})") from exc
+            if min(start_clock) <= 0:
+                raise ActionError("relógio inicial precisa ser maior que zero")
         if game < 1:
             raise ActionError("número da partida inválido")
         with self._lock:
@@ -297,6 +309,11 @@ class WebSession:
                 tc=tc, start_fen=self.state.start_fen,
             )
             self._new_engine_game()
+            if start_clock is not None:
+                us = self._us()
+                self.clock.set(us, start_clock[0])
+                self.clock.set(not us, start_clock[1])
+                self.log.note(f"clock nos={ours.strip()} adv={theirs.strip()} (início)")
             self.clock.start(chess.WHITE)
             self._save()
             self._touch()
@@ -634,6 +651,7 @@ class WebSession:
             if self.state is None:
                 data["phase"] = "setup"
                 data["resume"] = self._resume_candidate()
+                data["last_clock"] = self._last_clock()
                 return data
             us = self._us()
             data.update(
@@ -660,7 +678,33 @@ class WebSession:
                 board_svg=self._board_svg(us),
             )
             data["resume"] = self._resume_candidate() if self.state.finished else None
+            data["last_clock"] = self._last_clock() if self.state.finished else None
             return data
+
+    def _last_clock(self) -> dict[str, object] | None:
+        """Relógios no fim da última partida encerrada, para continuar com o tempo parado."""
+        state = self.state if self.state is not None and self.state.finished else None
+        if state is None:
+            paths = sorted(
+                self.logs_dir.glob("*.state.json"), key=lambda p: p.stat().st_mtime, reverse=True
+            )
+            for path in paths:
+                try:
+                    candidate = load_state(path)
+                except (StateError, OSError):
+                    continue
+                if candidate.finished:
+                    state = candidate
+                    break
+        if state is None:
+            return None
+        white_us = state.color == "white"
+        ours = state.white_ms if white_us else state.black_ms
+        theirs = state.black_ms if white_us else state.white_ms
+        return {
+            "opponent": state.opponent, "game": state.game, "result": state.result,
+            "ours": format_mmss(max(ours, 0)), "theirs": format_mmss(max(theirs, 0)),
+        }
 
     def _resume_candidate(self) -> dict[str, object] | None:
         path = latest_unfinished(self.logs_dir)
@@ -781,6 +825,7 @@ class _Handler(BaseHTTPRequestHandler):
             s.start_game(
                 str(body.get("color", "")), str(body.get("opponent", "")),
                 int(body.get("game", 1)), str(body.get("tc", "1500+0")),
+                str(body.get("ours", "") or ""), str(body.get("theirs", "") or ""),
             )
         elif self.path == "/api/move":
             s.opponent_move(str(body.get("move", "")))

@@ -528,3 +528,49 @@ def test_no_input_warning_without_previous_engine_eval(make_session):
     session.opponent_move("e4")
     wait_idle(session)
     assert session.snapshot()["warning"] == ""
+
+
+# --- relógio inicial (reinício após empate) -----------------------------------
+
+
+def test_start_with_clock_left_from_previous_game(make_session):
+    session = make_session()
+    session.start_game("black", "Equipe X", 3, "1500+0", ours="12:31", theirs="9:11")
+
+    snap = session.snapshot()
+    assert 751000 - 2000 < snap["ours_ms"] <= 751000
+    assert 551000 - 2000 < snap["theirs_ms"] <= 551000
+    assert "clock nos=12:31 adv=9:11 (início)" in Path(session.state.log_path).read_text()
+
+
+@pytest.mark.parametrize("ours,theirs", [("12:31", ""), ("abc", "9:11"), ("0:00", "9:11")])
+def test_bad_starting_clock_is_refused(make_session, ours, theirs):
+    session = make_session()
+    with pytest.raises(ActionError, match="relógio inicial"):
+        session.start_game("black", "Equipe X", 1, "1500+0", ours=ours, theirs=theirs)
+    assert session.state is None
+
+
+def test_last_clock_offered_after_a_finished_game(make_session):
+    session = make_session()
+    session.start_game("black", "Equipe X", 1, "1500+0")
+    session.set_clock("12:31", "9:11")
+    session.finish("draw", "")
+
+    last = session.snapshot()["last_clock"]
+
+    assert last["opponent"] == "Equipe X" and last["result"] == "1/2-1/2"
+    assert last["ours"] in ("12:31", "12:30") and last["theirs"] in ("9:11", "9:10")
+
+
+def test_last_clock_read_from_logs_after_restart(make_session, tmp_path):
+    first = make_session()
+    first.start_game("white", "Equipe X", 1, "1500+0")
+    wait_idle(first)
+    first.set_clock("10:00", "8:00")
+    first.finish("draw", "")
+    first.close()
+
+    second = make_session()
+    last = second.snapshot()["last_clock"]
+    assert last["ours"] in ("10:00", "9:59") and last["theirs"] in ("8:00", "7:59")

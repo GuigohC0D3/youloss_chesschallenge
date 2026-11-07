@@ -95,6 +95,13 @@
       <div class="grow"><label for="game-no">Partida nº</label><input id="game-no" type="number" min="1" value="1"></div>
       <div class="grow"><label for="tc">Tempo (seg + inc)</label><input id="tc" value="1500+0" autocomplete="off"></div>
     </div>
+    <div class="row field">
+      <div class="grow"><label for="start-ours">Nosso relógio (mm:ss)</label><input id="start-ours" autocomplete="off" placeholder="tempo cheio"></div>
+      <div class="grow"><label for="start-theirs">Relógio dele (mm:ss)</label><input id="start-theirs" autocomplete="off" placeholder="tempo cheio"></div>
+    </div>
+    <p class="hint">Partida que continua com o relógio parado de antes (ex.: reinício após empate)?
+      Preencha os dois relógios com o que o físico mostra. Vazio = tempo cheio.</p>
+    <button id="use-last-clock" type="button" hidden></button>
     <button class="primary" type="submit">Iniciar partida</button>
     <p class="hint">Inicie junto com o relógio físico.</p>
   </form>
@@ -250,6 +257,14 @@ function renderSetup(s) {
     $("resume-text").textContent = s.resume.opponent + ", partida " + s.resume.game +
       " (" + s.resume.plies + " meios-lances)";
   }
+  const last = s.last_clock;
+  $("use-last-clock").hidden = !last;
+  if (last) {
+    $("use-last-clock").textContent = "Usar relógio do fim da última partida (" + last.opponent +
+      "): nós " + last.ours + " · ele " + last.theirs;
+    $("use-last-clock").dataset.ours = last.ours;
+    $("use-last-clock").dataset.theirs = last.theirs;
+  }
   $("setup-engine").textContent = s.engine + " · " + s.threads + " threads · " + s.hash_mb +
     " MiB · " + (s.syzygy ? "com" : "sem") + " tablebases";
 }
@@ -297,12 +312,20 @@ $("start-form").addEventListener("submit", async (event) => {
     await post("/api/start", {
       color: $("color").value, opponent: $("opponent").value,
       game: Number($("game-no").value), tc: $("tc").value,
+      ours: $("start-ours").value, theirs: $("start-theirs").value,
     });
+    $("start-ours").value = "";
+    $("start-theirs").value = "";
     showError($("setup-error"), "");
   } catch (e) {
     setupRequested = current && current.phase !== "setup";
     showError($("setup-error"), e.message);
   }
+});
+
+$("use-last-clock").addEventListener("click", () => {
+  $("start-ours").value = $("use-last-clock").dataset.ours || "";
+  $("start-theirs").value = $("use-last-clock").dataset.theirs || "";
 });
 
 $("resume").addEventListener("click", async () => {
